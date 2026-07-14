@@ -32,6 +32,10 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7B6hyYzOpRWCqo6fGJjCYBCu5BGBPtPnr9Nlnd17kRQuqi4Q0qu98pO3-g_oXQ2VfpAlTCS9XoUu4/pub?gid=31953161&single=true&output=csv"; // <-- URL CSV pubblicato
 const USE_SHEET = true;  // <-- collegamento live attivo
 
+// === LOGIN (barriera visiva, non sicurezza reale) ===
+const AUTH_USER = "iona.cancelli";
+const AUTH_PASS = "chiara99";
+
 const COUNTRY_META = {
   ITA: { name: "Italia", continent: "Europa" },
   FRA: { name: "Francia", continent: "Europa" },
@@ -211,6 +215,7 @@ function parseCSV(text) {
 }
 
 export default function TravelTracker() {
+  const [authed, setAuthed] = useState(false);
   const [trips, setTrips] = useState(() => rowsToTrips(SAMPLE_ROWS));
   const [selected, setSelected] = useState(null);
   const [tooltip, setTooltip] = useState(null);
@@ -230,7 +235,8 @@ export default function TravelTracker() {
     let alive = true;
     (async () => {
       try {
-        const res = await fetch(SHEET_CSV_URL);
+        const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes("?") ? "&" : "?") + "_cb=" + Date.now();
+        const res = await fetch(url, { cache: "no-store" });
         if (!res.ok) throw new Error("HTTP " + res.status);
         const text = await res.text();
         const rows = parseCSV(text).filter((r) => r.some((c) => c && c.trim()));
@@ -340,6 +346,8 @@ export default function TravelTracker() {
     };
     reader.readAsText(file); e.target.value = "";
   }
+
+  if (!authed) return <LoginGate onOk={() => setAuthed(true)} />;
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
@@ -646,3 +654,34 @@ function TripForm({ onClose, onAdd }) {
   );
 }
 const lbl = { display: "block", fontSize: 12, color: C.inkSoft, marginBottom: 5 };
+
+function LoginGate({ onOk }) {
+  const [u, setU] = useState("");
+  const [p, setP] = useState("");
+  const [err, setErr] = useState(false);
+  function submit() {
+    if (u.trim() === AUTH_USER && p === AUTH_PASS) onOk();
+    else setErr(true);
+  }
+  return (
+    <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'Inter', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500&display=swap');`}</style>
+      <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 28, width: "100%", maxWidth: 340 }}>
+        <div style={{ fontSize: 34, textAlign: "center", marginBottom: 6 }}>🗺️</div>
+        <h1 style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 24, margin: "0 0 4px", textAlign: "center" }}>Travel Tracker</h1>
+        <p style={{ color: C.inkSoft, fontSize: 13, textAlign: "center", margin: "0 0 20px" }}>Accedi per continuare</p>
+        <input value={u} onChange={(e) => { setU(e.target.value); setErr(false); }} placeholder="Utente"
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          style={{ background: C.bg, color: C.ink, border: `1px solid ${err ? "#e76f51" : C.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, width: "100%", marginBottom: 10, fontFamily: "inherit" }} />
+        <input value={p} onChange={(e) => { setP(e.target.value); setErr(false); }} type="password" placeholder="Password"
+          onKeyDown={(e) => e.key === "Enter" && submit()}
+          style={{ background: C.bg, color: C.ink, border: `1px solid ${err ? "#e76f51" : C.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, width: "100%", marginBottom: 14, fontFamily: "inherit" }} />
+        {err && <div style={{ color: "#e76f51", fontSize: 13, marginBottom: 12, textAlign: "center" }}>Credenziali non valide</div>}
+        <button onClick={submit}
+          style={{ background: C.accent, color: "#06222a", border: "none", borderRadius: 10, padding: "11px", fontSize: 14, fontWeight: 600, width: "100%", cursor: "pointer", fontFamily: "inherit" }}>
+          Entra
+        </button>
+      </div>
+    </div>
+  );
+}
