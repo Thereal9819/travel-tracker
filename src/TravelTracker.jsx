@@ -142,6 +142,7 @@ export default function TravelTracker() {
   const [sortBy, setSortBy] = useState("date-desc");
   const [filterCountry, setFilterCountry] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
   const [sheetState, setSheetState] = useState(USE_SHEET ? "loading" : "idle");
   const [geoData, setGeoData] = useState(null);
   const jsonRef = useRef(null);
@@ -326,9 +327,6 @@ export default function TravelTracker() {
             <button className={"tt-btn" + (heatmap ? " active" : "")} onClick={() => setHeatmap((h) => !h)}>{heatmap ? "Heatmap on" : "Heatmap"}</button>
           )}
           <button className="tt-btn" onClick={() => setShowForm(true)}>+ Aggiungi viaggio</button>
-          <button className="tt-btn" onClick={exportJSON}>Esporta JSON</button>
-          <button className="tt-btn" onClick={() => jsonRef.current?.click()}>Importa JSON</button>
-          <button className="tt-btn" onClick={() => csvRef.current?.click()}>Importa CSV</button>
           {sheetState !== "idle" && (
             <span style={{ fontSize: 12, color: sheetState === "ok" ? C.accent : sheetState === "loading" ? C.inkSoft : "#e76f51" }}>
               {sheetState === "loading" && "Sheets: caricamento…"}
@@ -337,6 +335,16 @@ export default function TravelTracker() {
               {sheetState === "error" && "Sheets: errore (uso i dati locali)"}
             </span>
           )}
+          <ProfileMenu
+            show={showProfile}
+            onToggle={() => setShowProfile((s) => !s)}
+            onClose={() => setShowProfile(false)}
+            username={AUTH_USER}
+            onExportJSON={exportJSON}
+            onImportJSON={() => jsonRef.current?.click()}
+            onImportCSV={() => csvRef.current?.click()}
+            onLogout={() => setAuthed(false)}
+          />
           <input ref={jsonRef} type="file" accept="application/json" onChange={importJSON} style={{ display: "none" }} />
           <input ref={csvRef} type="file" accept=".csv,text/csv" onChange={importCSV} style={{ display: "none" }} />
         </div>
@@ -518,6 +526,44 @@ function Legend({ color, label }) {
     <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}>
       <span style={{ width: 10, height: 10, borderRadius: 3, background: color, display: "inline-block" }} />{label}
     </span>
+  );
+}
+function ProfileMenu({ show, onToggle, onClose, username, onExportJSON, onImportJSON, onImportCSV, onLogout }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!show) return;
+    function handleClick(e) { if (ref.current && !ref.current.contains(e.target)) onClose(); }
+    function handleKey(e) { if (e.key === "Escape") onClose(); }
+    document.addEventListener("mousedown", handleClick);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClick);
+      document.removeEventListener("keydown", handleKey);
+    };
+  }, [show, onClose]);
+
+  function run(fn) { fn(); onClose(); }
+
+  return (
+    <div ref={ref} style={{ position: "relative" }}>
+      <button className="tt-btn" onClick={onToggle} aria-label="Profilo" style={{ padding: "8px 12px" }}>👤</button>
+      {show && (
+        <div style={{
+          position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 60,
+          background: C.panel, border: `1px solid ${C.line}`, borderRadius: 12,
+          padding: 12, minWidth: 200, display: "flex", flexDirection: "column", gap: 6,
+          boxShadow: "0 8px 24px rgba(0,0,0,.35)",
+        }}>
+          <div style={{ fontSize: 12, color: C.inkSoft, padding: "2px 6px 8px", borderBottom: `1px solid ${C.line}`, marginBottom: 2 }}>
+            {username}
+          </div>
+          <button className="tt-btn" style={{ textAlign: "left" }} onClick={() => run(onExportJSON)}>Esporta JSON</button>
+          <button className="tt-btn" style={{ textAlign: "left" }} onClick={() => run(onImportJSON)}>Importa JSON</button>
+          <button className="tt-btn" style={{ textAlign: "left" }} onClick={() => run(onImportCSV)}>Importa CSV</button>
+          <button className="tt-btn" style={{ textAlign: "left", color: "#e76f51" }} onClick={() => run(onLogout)}>Logout</button>
+        </div>
+      )}
+    </div>
   );
 }
 const inp = { background: C.bg, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, flex: "1 1 180px", minWidth: 140 };
