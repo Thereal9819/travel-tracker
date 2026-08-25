@@ -334,7 +334,6 @@ export default function TravelTracker() {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'Inter', system-ui, sans-serif" }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Inter:wght@400;500;600&display=swap');
         * { box-sizing: border-box; }
         .tt-btn { cursor:pointer; border:1px solid ${C.line}; background:${C.panel}; color:${C.ink};
           padding:8px 14px; border-radius:10px; font-size:14px; transition:.15s; }
@@ -697,7 +696,6 @@ function LoginGate({ onOk }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'Inter', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500&display=swap');
         * { box-sizing: border-box; }
       `}</style>
       <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 28, width: "100%", maxWidth: 340 }}>
