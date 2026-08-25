@@ -1,10 +1,13 @@
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import React, { useState, useMemo, useRef, useEffect, lazy, Suspense } from "react";
 import {
   ComposableMap,
   Geographies,
   Geography,
   ZoomableGroup,
 } from "react-simple-maps";
+import { COUNTRY_META, NAME_TO_A3, NUM_TO_A3, a3FromGeo } from "./countries.js";
+
+const Globe3D = lazy(() => import("./Globe3D.jsx"));
 
 /*
   Travel Tracker — single-file React app
@@ -35,84 +38,6 @@ const USE_SHEET = true;  // <-- collegamento live attivo
 // === LOGIN (barriera visiva, non sicurezza reale) ===
 const AUTH_USER = "iona.cancelli";
 const AUTH_PASS = "chiara99";
-
-const COUNTRY_META = {
-  ITA: { name: "Italia", continent: "Europa" },
-  FRA: { name: "Francia", continent: "Europa" },
-  ESP: { name: "Spagna", continent: "Europa" },
-  PRT: { name: "Portogallo", continent: "Europa" },
-  DEU: { name: "Germania", continent: "Europa" },
-  AUT: { name: "Austria", continent: "Europa" },
-  CHE: { name: "Svizzera", continent: "Europa" },
-  NLD: { name: "Paesi Bassi", continent: "Europa" },
-  BEL: { name: "Belgio", continent: "Europa" },
-  GBR: { name: "Regno Unito", continent: "Europa" },
-  IRL: { name: "Irlanda", continent: "Europa" },
-  GRC: { name: "Grecia", continent: "Europa" },
-  HRV: { name: "Croazia", continent: "Europa" },
-  CZE: { name: "Repubblica Ceca", continent: "Europa" },
-  POL: { name: "Polonia", continent: "Europa" },
-  HUN: { name: "Ungheria", continent: "Europa" },
-  SVN: { name: "Slovenia", continent: "Europa" },
-  NOR: { name: "Norvegia", continent: "Europa" },
-  SWE: { name: "Svezia", continent: "Europa" },
-  FIN: { name: "Finlandia", continent: "Europa" },
-  DNK: { name: "Danimarca", continent: "Europa" },
-  ISL: { name: "Islanda", continent: "Europa" },
-  CYP: { name: "Cipro", continent: "Europa" },
-  JPN: { name: "Giappone", continent: "Asia" },
-  CHN: { name: "Cina", continent: "Asia" },
-  THA: { name: "Thailandia", continent: "Asia" },
-  VNM: { name: "Vietnam", continent: "Asia" },
-  IDN: { name: "Indonesia", continent: "Asia" },
-  IND: { name: "India", continent: "Asia" },
-  TUR: { name: "Turchia", continent: "Asia" },
-  ARE: { name: "Emirati Arabi Uniti", continent: "Asia" },
-  ISR: { name: "Israele", continent: "Asia" },
-  KOR: { name: "Corea del Sud", continent: "Asia" },
-  USA: { name: "Stati Uniti", continent: "Nord America" },
-  CAN: { name: "Canada", continent: "Nord America" },
-  MEX: { name: "Messico", continent: "Nord America" },
-  CUB: { name: "Cuba", continent: "Nord America" },
-  BRA: { name: "Brasile", continent: "Sud America" },
-  ARG: { name: "Argentina", continent: "Sud America" },
-  PER: { name: "Perù", continent: "Sud America" },
-  CHL: { name: "Cile", continent: "Sud America" },
-  COL: { name: "Colombia", continent: "Sud America" },
-  MAR: { name: "Marocco", continent: "Africa" },
-  EGY: { name: "Egitto", continent: "Africa" },
-  ZAF: { name: "Sudafrica", continent: "Africa" },
-  TZA: { name: "Tanzania", continent: "Africa" },
-  KEN: { name: "Kenya", continent: "Africa" },
-  AUS: { name: "Australia", continent: "Oceania" },
-  NZL: { name: "Nuova Zelanda", continent: "Oceania" },
-};
-
-const NAME_TO_A3 = {};
-for (const [a3, m] of Object.entries(COUNTRY_META)) NAME_TO_A3[m.name.toLowerCase()] = a3;
-Object.assign(NAME_TO_A3, {
-  "regno unito": "GBR", "inghilterra": "GBR", "uk": "GBR",
-  "stati uniti d'america": "USA", "usa": "USA", "america": "USA",
-  "paesi bassi": "NLD", "olanda": "NLD",
-  "repubblica ceca": "CZE", "cechia": "CZE",
-});
-
-const NUM_TO_A3 = {
-  "380": "ITA", "250": "FRA", "724": "ESP", "620": "PRT", "276": "DEU",
-  "040": "AUT", "756": "CHE", "528": "NLD", "056": "BEL", "826": "GBR",
-  "372": "IRL", "300": "GRC", "191": "HRV", "203": "CZE", "616": "POL",
-  "348": "HUN", "705": "SVN", "578": "NOR", "752": "SWE", "246": "FIN",
-  "208": "DNK", "352": "ISL", "196": "CYP", "392": "JPN", "156": "CHN",
-  "764": "THA", "704": "VNM", "360": "IDN", "356": "IND", "792": "TUR",
-  "784": "ARE", "376": "ISR", "410": "KOR", "840": "USA", "124": "CAN",
-  "484": "MEX", "192": "CUB", "076": "BRA", "032": "ARG", "604": "PER",
-  "152": "CHL", "170": "COL", "504": "MAR", "818": "EGY", "710": "ZAF",
-  "834": "TZA", "404": "KEN", "036": "AUS", "554": "NZL",
-};
-function a3FromGeo(geo) {
-  const raw = String(geo.id);
-  return NUM_TO_A3[raw.padStart(3, "0")] || NUM_TO_A3[raw] || null;
-}
 
 function splitPosto(posto) {
   if (!posto) return { city: "", rest: "" };
@@ -163,22 +88,6 @@ function rowsToTrips(rows) {
   }).filter((t) => t.countryA3);
 }
 
-const SUGGESTIONS = {
-  italia: [
-    { dest: "Verona", why: "Prima città italiana nella European Best Destinations 2026: Arena romana, centro UNESCO, cultura ed enogastronomia.", when: "Aprile–giugno / settembre", source: "European Best Destinations 2026 — idealista.it", url: "https://www.idealista.it/news/vacanze/mete-turistiche/2026/02/23/328740-le-20-mete-dove-andare-in-vacanza-secondo-l-european-best-destinations-2026" },
-    { dest: "Firenze", why: "Tra le migliori destinazioni culturali europee 2026: densità museale altissima e centro rinascimentale senza tempo.", when: "Marzo–maggio / ottobre", source: "SportOutdoor24 — cultura 2026", url: "https://www.sportoutdoor24.it/news/migliori-mete-cultura-2026-classifica-european-best-destinations/" },
-    { dest: "Procida", why: "Isola campana premiata per ritmi lenti e autenticità mediterranea, ideale per chi cerca undertourism.", when: "Maggio–giugno / settembre", source: "Donna Moderna — EBD 2026", url: "https://www.donnamoderna.com/lifestyle/viaggi/european-best-destinations-2026-sette-citta-italiane-top-20" },
-    { dest: "Cefalù", why: "Duomo normanno UNESCO, centro storico sul mare e spiaggia dorata in Sicilia.", when: "Maggio–giugno / settembre", source: "idealista.it — EBD 2026", url: "https://www.idealista.it/news/vacanze/mete-turistiche/2026/02/23/328740-le-20-mete-dove-andare-in-vacanza-secondo-l-european-best-destinations-2026" },
-  ],
-  estero: [
-    { dest: "Madrid, Spagna", why: "Eletta miglior destinazione europea 2026: Prado, Reina Sofía, Thyssen, vita gastronomica e quartieri creativi.", when: "Aprile–giugno / settembre–ottobre", source: "European Best Destinations 2026 — siviaggia.it", url: "https://siviaggia.it/notizie/migliori-destinazioni-viaggio-classifica-european-best-destinations-2026/576440/" },
-    { dest: "Nicosia, Cipro", why: "Migliore destinazione culturale europea 2026: intreccio veneziano-ottomano, musei e scena d'arte contemporanea.", when: "Primavera / autunno", source: "SportOutdoor24 — cultura 2026", url: "https://www.sportoutdoor24.it/news/migliori-mete-cultura-2026-classifica-european-best-destinations/" },
-    { dest: "Vienna, Austria", why: "Patrimonio imperiale + MuseumsQuartier con Klimt e Schiele; caffè storici e alta cultura.", when: "Aprile–giugno / settembre", source: "SportOutdoor24 — cultura 2026", url: "https://www.sportoutdoor24.it/news/migliori-mete-cultura-2026-classifica-european-best-destinations/" },
-    { dest: "Lisbona, Portogallo", why: "Città storica in ascesa: fascino nostalgico, arte e tradizione, tra le più amate del 2026.", when: "Marzo–giugno / settembre", source: "Okviaggi — mete europee 2026", url: "https://www.okviaggi.it/le-migliori-mete-europee-del-2026-ecco-la-classifica-delle-destinazioni-emergenti/" },
-    { dest: "Lubiana, Slovenia", why: "Capitale slow e green: centro pedonale, ponti sulla Ljubljanica, gastronomia stagionale.", when: "Maggio–settembre", source: "Tramundi — città europee 2026", url: "https://www.tramundi.it/blog/a/citta-europee-da-visitare-nel-2026" },
-  ],
-};
-
 const CONTINENTS = ["Europa", "Asia", "Nord America", "Sud America", "Africa", "Oceania"];
 
 const C = {
@@ -226,6 +135,7 @@ export default function TravelTracker() {
   const [filterCountry, setFilterCountry] = useState("all");
   const [showForm, setShowForm] = useState(false);
   const [sheetState, setSheetState] = useState(USE_SHEET ? "loading" : "idle");
+  const [geoData, setGeoData] = useState(null);
   const jsonRef = useRef(null);
   const csvRef = useRef(null);
 
@@ -249,6 +159,16 @@ export default function TravelTracker() {
         if (alive) setSheetState("error");
       }
     })();
+    return () => { alive = false; };
+  }, []);
+
+  // Confini mondiali: un solo fetch, condiviso da mappa 2D e globo 3D.
+  useEffect(() => {
+    let alive = true;
+    fetch(GEO_URL)
+      .then((res) => res.json())
+      .then((topo) => { if (alive) setGeoData(topo); })
+      .catch(() => {});
     return () => { alive = false; };
   }, []);
 
@@ -388,13 +308,13 @@ export default function TravelTracker() {
         </div>
 
         <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-          {["mappa", "lista", "suggerimenti"].map((v) => (
+          {["mappa", "lista", "mappa3d"].map((v) => (
             <button key={v} className={"tt-btn" + (view === v ? " active" : "")} onClick={() => setView(v)}>
-              {v === "mappa" ? "Mappa" : v === "lista" ? "Lista viaggi" : "Suggerimenti"}
+              {v === "mappa" ? "Mappa" : v === "lista" ? "Lista viaggi" : "Mappa 3D"}
             </button>
           ))}
           <div style={{ flex: 1 }} />
-          {view === "mappa" && (
+          {(view === "mappa" || view === "mappa3d") && (
             <button className={"tt-btn" + (heatmap ? " active" : "")} onClick={() => setHeatmap((h) => !h)}>{heatmap ? "Heatmap on" : "Heatmap"}</button>
           )}
           <button className="tt-btn" onClick={() => setShowForm(true)}>+ Aggiungi viaggio</button>
@@ -415,47 +335,66 @@ export default function TravelTracker() {
       </header>
 
       <main style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 20px 40px" }}>
-        {view === "mappa" && (
+        {(view === "mappa" || view === "mappa3d") && (
           <div className="tt-grid" style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 16 }}>
             <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, position: "relative", overflow: "hidden" }}>
-              <ComposableMap projectionConfig={{ scale: 155 }} style={{ width: "100%", height: "auto" }}>
-                <ZoomableGroup center={[10, 30]} zoom={1}>
-                  <Geographies geography={GEO_URL}>
-                    {({ geographies }) =>
-                      geographies.map((geo) => {
-                        const a3 = a3FromGeo(geo);
-                        const visits = a3 ? byCountry[a3]?.length || 0 : 0;
-                        const isVisited = visits > 0;
-                        const isSel = a3 && a3 === selected;
-                        let fill = C.neutral;
-                        if (isVisited) fill = heatmap ? heatColor(visits) : C.visited;
-                        return (
-                          <Geography key={geo.rsmKey} geography={geo}
-                            tabIndex={isVisited ? 0 : -1}
-                            onMouseEnter={(e) => {
-                              const name = a3 ? COUNTRY_META[a3]?.name || geo.properties.name : geo.properties.name;
-                              setTooltip({ name, count: visits, x: e.clientX, y: e.clientY });
-                            }}
-                            onMouseMove={(e) => setTooltip((t) => t && { ...t, x: e.clientX, y: e.clientY })}
-                            onMouseLeave={() => setTooltip(null)}
-                            onClick={() => { if (isVisited) setSelected(a3); }}
-                            style={{
-                              default: { fill: isSel ? C.accent : fill, stroke: C.bg, strokeWidth: 0.4, outline: "none" },
-                              hover: { fill: isVisited ? C.visitedHot : C.neutralHover, stroke: C.bg, strokeWidth: 0.4, outline: "none", cursor: isVisited ? "pointer" : "default" },
-                              pressed: { fill: C.accent, outline: "none" },
-                            }} />
-                        );
-                      })
-                    }
-                  </Geographies>
-                </ZoomableGroup>
-              </ComposableMap>
-              <div style={{ position: "absolute", bottom: 10, left: 12, display: "flex", gap: 14, fontSize: 11, color: C.inkSoft, background: "rgba(13,27,42,.7)", padding: "6px 10px", borderRadius: 8 }}>
-                <Legend color={C.visited} label="Visitato" />
-                {heatmap && <Legend color={C.visitedHot} label="3+ visite" />}
-                <Legend color={C.neutral} label="Non visitato" />
-                <span>Trascina · scroll per zoom</span>
-              </div>
+              {view === "mappa" ? (
+                geoData && (
+                <ComposableMap projectionConfig={{ scale: 155 }} style={{ width: "100%", height: "auto" }}>
+                  <ZoomableGroup center={[10, 30]} zoom={1}>
+                    <Geographies geography={geoData}>
+                      {({ geographies }) =>
+                        geographies.map((geo) => {
+                          const a3 = a3FromGeo(geo);
+                          const visits = a3 ? byCountry[a3]?.length || 0 : 0;
+                          const isVisited = visits > 0;
+                          const isSel = a3 && a3 === selected;
+                          let fill = C.neutral;
+                          if (isVisited) fill = heatmap ? heatColor(visits) : C.visited;
+                          return (
+                            <Geography key={geo.rsmKey} geography={geo}
+                              tabIndex={isVisited ? 0 : -1}
+                              onMouseEnter={(e) => {
+                                const name = a3 ? COUNTRY_META[a3]?.name || geo.properties.name : geo.properties.name;
+                                setTooltip({ name, count: visits, x: e.clientX, y: e.clientY });
+                              }}
+                              onMouseMove={(e) => setTooltip((t) => t && { ...t, x: e.clientX, y: e.clientY })}
+                              onMouseLeave={() => setTooltip(null)}
+                              onClick={() => { if (isVisited) setSelected(a3); }}
+                              style={{
+                                default: { fill: isSel ? C.accent : fill, stroke: C.bg, strokeWidth: 0.4, outline: "none" },
+                                hover: { fill: isVisited ? C.visitedHot : C.neutralHover, stroke: C.bg, strokeWidth: 0.4, outline: "none", cursor: isVisited ? "pointer" : "default" },
+                                pressed: { fill: C.accent, outline: "none" },
+                              }} />
+                          );
+                        })
+                      }
+                    </Geographies>
+                  </ZoomableGroup>
+                </ComposableMap>
+                )
+              ) : (
+                <Suspense fallback={
+                  <div style={{ padding: 60, textAlign: "center", color: C.inkSoft }}>Caricamento mappa 3D…</div>
+                }>
+                  <Globe3D
+                    geoData={geoData}
+                    byCountry={byCountry}
+                    heatmap={heatmap}
+                    selected={selected}
+                    onSelect={setSelected}
+                    onHover={setTooltip}
+                  />
+                </Suspense>
+              )}
+              {view === "mappa" && (
+                <div style={{ position: "absolute", bottom: 10, left: 12, display: "flex", gap: 14, fontSize: 11, color: C.inkSoft, background: "rgba(13,27,42,.7)", padding: "6px 10px", borderRadius: 8 }}>
+                  <Legend color={C.visited} label="Visitato" />
+                  {heatmap && <Legend color={C.visitedHot} label="3+ visite" />}
+                  <Legend color={C.neutral} label="Non visitato" />
+                  <span>Trascina · scroll per zoom</span>
+                </div>
+              )}
             </div>
 
             <aside style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16, minHeight: 300 }}>
@@ -543,16 +482,6 @@ export default function TravelTracker() {
           </div>
         )}
 
-        {view === "suggerimenti" && (
-          <div className="tt-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-            <SuggCol title="In Italia" items={SUGGESTIONS.italia} />
-            <SuggCol title="All'estero" items={SUGGESTIONS.estero} />
-            <p style={{ gridColumn: "1 / -1", fontSize: 12, color: C.inkSoft, margin: 0 }}>
-              Suggerimenti basati sui trend di viaggio 2026 (European Best Destinations e guide di settore),
-              orientati verso città d'arte e cultura in linea con i tuoi viaggi. Ogni scheda cita la fonte.
-            </p>
-          </div>
-        )}
       </main>
 
       {tooltip && (
@@ -583,26 +512,6 @@ function Legend({ color, label }) {
     </span>
   );
 }
-function SuggCol({ title, items }) {
-  return (
-    <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 16 }}>
-      <h2 style={{ fontFamily: "'Fraunces',serif", margin: "0 0 12px", fontSize: 20 }}>{title}</h2>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-        {items.map((s) => (
-          <div key={s.dest} style={{ background: C.panelSoft, border: `1px solid ${C.line}`, borderRadius: 12, padding: 12 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 8, alignItems: "baseline" }}>
-              <strong style={{ fontSize: 15 }}>{s.dest}</strong>
-              <span style={{ fontSize: 12, color: C.accent }}>{s.when}</span>
-            </div>
-            <p style={{ margin: "6px 0 8px", fontSize: 13, color: C.inkSoft, lineHeight: 1.45 }}>{s.why}</p>
-            <a href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 12 }}>Fonte: {s.source} ↗</a>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const inp = { background: C.bg, color: C.ink, border: `1px solid ${C.line}`, borderRadius: 10, padding: "9px 12px", fontSize: 14, flex: "1 1 180px", minWidth: 140 };
 const th = { padding: "8px 10px", fontWeight: 500, fontSize: 12 };
 const td = { padding: "9px 10px", verticalAlign: "top" };
