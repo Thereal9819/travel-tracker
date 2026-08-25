@@ -48,8 +48,10 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  if (url.origin === self.location.origin) {
-    // Asset statici (JS/CSS/icone): cache-first, aggiornati in background.
+  const isWorldMap = url.hostname === "cdn.jsdelivr.net";
+
+  if (url.origin === self.location.origin || isWorldMap) {
+    // Asset statici (JS/CSS/icone) e confini mondiali (non cambiano mai): cache-first.
     event.respondWith(cacheFirst(request));
   }
 });
