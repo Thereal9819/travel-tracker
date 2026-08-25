@@ -628,7 +628,10 @@ function LoginGate({ onOk }) {
   }
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.ink, fontFamily: "'Inter', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <style>{`@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500&display=swap');`}</style>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600&family=Inter:wght@400;500&display=swap');
+        * { box-sizing: border-box; }
+      `}</style>
       <div style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 28, width: "100%", maxWidth: 340 }}>
         <div style={{ fontSize: 34, textAlign: "center", marginBottom: 6 }}>🗺️</div>
         <h1 style={{ fontFamily: "'Fraunces',serif", fontWeight: 600, fontSize: 24, margin: "0 0 4px", textAlign: "center" }}>Travel Tracker</h1>
