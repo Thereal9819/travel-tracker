@@ -4,8 +4,11 @@ import {
   Geographies,
   Geography,
   ZoomableGroup,
+  Marker,
 } from "react-simple-maps";
 import { COUNTRY_META, NAME_TO_A3, a3FromGeo } from "./countries.js";
+import { MILESTONES } from "./milestones.js";
+import Milestones from "./Milestones.jsx";
 
 const Globe3D = lazy(() =>
   import("./Globe3D.jsx").catch(() => ({
@@ -42,6 +45,13 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 // L'app legge le colonne: Nazione, Regione, Posto, Visitato dal, Visitato al [, Costo]
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7B6hyYzOpRWCqo6fGJjCYBCu5BGBPtPnr9Nlnd17kRQuqi4Q0qu98pO3-g_oXQ2VfpAlTCS9XoUu4/pub?gid=31953161&single=true&output=csv"; // <-- URL CSV pubblicato
 const USE_SHEET = true;  // <-- collegamento live attivo
+
+// === COLLEGAMENTO MILESTONE (Google Apps Script) ===
+// Vedi apps-script/milestone.gs per il codice da incollare in Google Sheets
+// (Estensioni > Apps Script), poi Distribuisci > Nuova distribuzione > Web app.
+// Incolla qui sotto l'URL che termina in /exec. Se lasci vuoto, le milestone
+// funzionano solo in locale (nessuna persistenza tra dispositivi/sessioni).
+const MILESTONE_API_URL = ""; // <-- URL Web App Apps Script
 
 // === LOGIN (barriera visiva, non sicurezza reale) ===
 const AUTH_USER = "iona.cancelli";
@@ -145,6 +155,8 @@ export default function TravelTracker() {
   const [showProfile, setShowProfile] = useState(false);
   const [sheetState, setSheetState] = useState(USE_SHEET ? "loading" : "idle");
   const [geoData, setGeoData] = useState(null);
+  const [checkedMilestoneIds, setCheckedMilestoneIds] = useState(() => new Set());
+  const [milestoneSyncState, setMilestoneSyncState] = useState(MILESTONE_API_URL ? "loading" : "idle");
   const jsonRef = useRef(null);
   const csvRef = useRef(null);
 
@@ -181,6 +193,42 @@ export default function TravelTracker() {
     return () => { alive = false; };
   }, []);
 
+  // Milestone spuntate: caricate una volta all'avvio dal foglio Google (se configurato).
+  useEffect(() => {
+    if (!MILESTONE_API_URL) return;
+    let alive = true;
+    fetch(MILESTONE_API_URL + "?_cb=" + Date.now(), { cache: "no-store" })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!alive) return;
+        setCheckedMilestoneIds(new Set(data.checked || []));
+        setMilestoneSyncState("ok");
+      })
+      .catch(() => { if (alive) setMilestoneSyncState("error"); });
+    return () => { alive = false; };
+  }, []);
+
+  function toggleMilestone(id, checked) {
+    setCheckedMilestoneIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id); else next.delete(id);
+      return next;
+    });
+    if (!MILESTONE_API_URL) return;
+    setMilestoneSyncState("loading");
+    fetch(MILESTONE_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ id, checked }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        setCheckedMilestoneIds(new Set(data.checked || []));
+        setMilestoneSyncState("ok");
+      })
+      .catch(() => setMilestoneSyncState("error"));
+  }
+
   const byCountry = useMemo(() => {
     const m = {};
     for (const t of trips) {
@@ -190,6 +238,11 @@ export default function TravelTracker() {
     for (const k in m) m[k].sort((a, b) => (a.dateStart < b.dateStart ? -1 : 1));
     return m;
   }, [trips]);
+
+  const checkedMilestones = useMemo(
+    () => MILESTONES.filter((m) => checkedMilestoneIds.has(m.id)),
+    [checkedMilestoneIds]
+  );
 
   const stats = useMemo(() => {
     const visited = Object.keys(byCountry);
@@ -317,9 +370,9 @@ export default function TravelTracker() {
         </div>
 
         <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-          {["mappa", "lista", "mappa3d"].map((v) => (
+          {["mappa", "lista", "mappa3d", "milestone"].map((v) => (
             <button key={v} className={"tt-btn" + (view === v ? " active" : "")} onClick={() => setView(v)}>
-              {v === "mappa" ? "Mappa" : v === "lista" ? "Lista viaggi" : "Mappa 3D"}
+              {v === "mappa" ? "Mappa" : v === "lista" ? "Lista viaggi" : v === "mappa3d" ? "Mappa 3D" : "Milestone"}
             </button>
           ))}
           <div style={{ flex: 1 }} />
@@ -386,6 +439,11 @@ export default function TravelTracker() {
                         })
                       }
                     </Geographies>
+                    {checkedMilestones.map((m) => (
+                      <Marker key={m.id} coordinates={[m.lng, m.lat]}>
+                        <circle r={4} fill={C.accent} stroke={C.bg} strokeWidth={1} style={{ pointerEvents: "none" }} />
+                      </Marker>
+                    ))}
                   </ZoomableGroup>
                 </ComposableMap>
                 )
@@ -400,6 +458,7 @@ export default function TravelTracker() {
                     selected={selected}
                     onSelect={setSelected}
                     onHover={setTooltip}
+                    milestones={checkedMilestones}
                   />
                 </Suspense>
               )}
@@ -498,12 +557,21 @@ export default function TravelTracker() {
           </div>
         )}
 
+        {view === "milestone" && (
+          <Milestones
+            C={C}
+            checkedIds={checkedMilestoneIds}
+            syncState={milestoneSyncState}
+            onToggle={toggleMilestone}
+          />
+        )}
+
       </main>
 
       {tooltip && (
         <div style={{ position: "fixed", left: tooltip.x + 12, top: tooltip.y + 12, pointerEvents: "none", background: "rgba(6,15,24,.95)", border: `1px solid ${C.line}`, borderRadius: 8, padding: "6px 10px", fontSize: 13, zIndex: 50 }}>
           <strong>{tooltip.name}</strong>
-          <span style={{ color: C.inkSoft }}> · {tooltip.count > 0 ? `${tooltip.count} visita${tooltip.count > 1 ? "e" : ""}` : "non visitato"}</span>
+          <span style={{ color: C.inkSoft }}> · {tooltip.kind === "milestone" ? "milestone" : (tooltip.count > 0 ? `${tooltip.count} visita${tooltip.count > 1 ? "e" : ""}` : "non visitato")}</span>
         </div>
       )}
 

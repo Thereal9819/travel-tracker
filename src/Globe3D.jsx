@@ -18,7 +18,7 @@ function heatColor(count) {
   return VISITED;
 }
 
-export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelect, onHover }) {
+export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelect, onHover, milestones }) {
   const containerRef = useRef(null);
   const posRef = useRef({ x: 0, y: 0 });
   const [size, setSize] = useState({ width: 600, height: 460 });
@@ -98,6 +98,16 @@ export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelec
           const visits = a3 ? byCountry[a3]?.length || 0 : 0;
           const name = a3 ? COUNTRY_META[a3]?.name || polygon.properties?.name : polygon.properties?.name;
           onHover({ name, count: visits, ...posRef.current });
+        }}
+        pointsData={milestones || []}
+        pointLat="lat"
+        pointLng="lng"
+        pointColor={() => ACCENT}
+        pointRadius={0.35}
+        pointAltitude={0.01}
+        onPointHover={(point) => {
+          if (!point) { onHover(null); return; }
+          onHover({ name: point.name, kind: "milestone", ...posRef.current });
         }}
       />
     </div>
