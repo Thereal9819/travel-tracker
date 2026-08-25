@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Globe from "react-globe.gl";
 import { feature } from "topojson-client";
 import * as THREE from "three";
@@ -20,6 +20,7 @@ function heatColor(count) {
 
 export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelect, onHover }) {
   const containerRef = useRef(null);
+  const posRef = useRef({ x: 0, y: 0 });
   const [size, setSize] = useState({ width: 600, height: 460 });
 
   useEffect(() => {
@@ -33,6 +34,9 @@ export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelec
     return () => ro.disconnect();
   }, []);
 
+  // Evita che il tooltip resti visibile dopo lo smontaggio del componente.
+  useEffect(() => () => onHover(null), []);
+
   const countries = useMemo(() => {
     if (!geoData) return [];
     return feature(geoData, geoData.objects.countries).features;
@@ -43,19 +47,32 @@ export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelec
     []
   );
 
-  function colorFor(polygon) {
+  const colorFor = useCallback((polygon) => {
     const a3 = a3FromGeo(polygon);
     const visits = a3 ? byCountry[a3]?.length || 0 : 0;
     if (visits === 0) return NEUTRAL;
     return heatmap ? heatColor(visits) : VISITED;
-  }
+  }, [byCountry, heatmap]);
 
-  function strokeFor(polygon) {
+  const strokeFor = useCallback((polygon) => {
     return a3FromGeo(polygon) === selected ? ACCENT : LINE;
-  }
+  }, [selected]);
+
+  const sideColor = useMemo(() => () => "rgba(13,27,42,0.6)", []);
+
+  const showPointerCursor = useCallback((objType, d) => {
+    if (objType !== "polygon") return false;
+    const a3 = a3FromGeo(d);
+    return !!(a3 && byCountry[a3]?.length);
+  }, [byCountry]);
 
   return (
-    <div ref={containerRef} style={{ width: "100%", display: "flex", justifyContent: "center" }}>
+    <div
+      ref={containerRef}
+      style={{ width: "100%", display: "flex", justifyContent: "center" }}
+      onMouseMove={(e) => { posRef.current = { x: e.clientX, y: e.clientY }; }}
+      onMouseLeave={() => onHover(null)}
+    >
       <Globe
         width={size.width}
         height={size.height}
@@ -67,19 +84,20 @@ export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelec
         polygonsData={countries}
         polygonAltitude={0.008}
         polygonCapColor={colorFor}
-        polygonSideColor={() => "rgba(13,27,42,0.6)"}
+        polygonSideColor={sideColor}
         polygonStrokeColor={strokeFor}
         polygonsTransitionDuration={200}
+        showPointerCursor={showPointerCursor}
         onPolygonClick={(polygon) => {
           const a3 = a3FromGeo(polygon);
           if (a3 && byCountry[a3]?.length) onSelect(a3);
         }}
-        onPolygonHover={(polygon, _prevPolygon, event) => {
+        onPolygonHover={(polygon) => {
           if (!polygon) { onHover(null); return; }
           const a3 = a3FromGeo(polygon);
           const visits = a3 ? byCountry[a3]?.length || 0 : 0;
           const name = a3 ? COUNTRY_META[a3]?.name || polygon.properties?.name : polygon.properties?.name;
-          onHover({ name, count: visits, x: event?.clientX || 0, y: event?.clientY || 0 });
+          onHover({ name, count: visits, ...posRef.current });
         }}
       />
     </div>

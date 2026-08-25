@@ -5,9 +5,17 @@ import {
   Geography,
   ZoomableGroup,
 } from "react-simple-maps";
-import { COUNTRY_META, NAME_TO_A3, NUM_TO_A3, a3FromGeo } from "./countries.js";
+import { COUNTRY_META, NAME_TO_A3, a3FromGeo } from "./countries.js";
 
-const Globe3D = lazy(() => import("./Globe3D.jsx"));
+const Globe3D = lazy(() =>
+  import("./Globe3D.jsx").catch(() => ({
+    default: () => (
+      <div style={{ padding: 60, textAlign: "center", color: C.inkSoft }}>
+        Mappa 3D non disponibile offline. Riprova quando sei online.
+      </div>
+    ),
+  }))
+);
 
 /*
   Travel Tracker — single-file React app
