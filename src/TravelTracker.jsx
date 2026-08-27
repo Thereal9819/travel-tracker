@@ -46,12 +46,10 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7B6hyYzOpRWCqo6fGJjCYBCu5BGBPtPnr9Nlnd17kRQuqi4Q0qu98pO3-g_oXQ2VfpAlTCS9XoUu4/pub?gid=31953161&single=true&output=csv"; // <-- URL CSV pubblicato
 const USE_SHEET = true;  // <-- collegamento live attivo
 
-// === COLLEGAMENTO MILESTONE (Google Apps Script) ===
-// Vedi apps-script/milestone.gs per il codice da incollare in Google Sheets
-// (Estensioni > Apps Script), poi Distribuisci > Nuova distribuzione > Web app.
-// Incolla qui sotto l'URL che termina in /exec. Se lasci vuoto, le milestone
-// funzionano solo in locale (nessuna persistenza tra dispositivi/sessioni).
-const MILESTONE_API_URL = ""; // <-- URL Web App Apps Script
+// === COLLEGAMENTO MILESTONE (database Turso) ===
+// Endpoint dell'API interna (Vercel Serverless Function + database Turso).
+// Percorso relativo: stesso dominio del sito, nessun problema di CORS.
+const MILESTONE_API_URL = "/api/milestones";
 
 // === LOGIN (barriera visiva, non sicurezza reale) ===
 const AUTH_USER = "iona.cancelli";
@@ -198,7 +196,7 @@ export default function TravelTracker() {
     if (!MILESTONE_API_URL) return;
     let alive = true;
     fetch(MILESTONE_API_URL + "?_cb=" + Date.now(), { cache: "no-store" })
-      .then((res) => res.json())
+      .then((res) => { if (!res.ok) throw new Error("HTTP " + res.status); return res.json(); })
       .then((data) => {
         if (!alive) return;
         setCheckedMilestoneIds(new Set(data.checked || []));
@@ -218,10 +216,10 @@ export default function TravelTracker() {
     setMilestoneSyncState("loading");
     fetch(MILESTONE_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id, checked }),
     })
-      .then((res) => res.json())
+      .then((res) => { if (!res.ok) throw new Error("HTTP " + res.status); return res.json(); })
       .then((data) => {
         setCheckedMilestoneIds(new Set(data.checked || []));
         setMilestoneSyncState("ok");

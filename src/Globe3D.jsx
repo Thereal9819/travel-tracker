@@ -5,7 +5,7 @@ import * as THREE from "three";
 import { COUNTRY_META, a3FromGeo } from "./countries.js";
 
 const BG = "#0d1b2a";
-const LINE = "#26415c";
+const LINE = "#0d1b2a";
 const ACCENT = "#5bc0be";
 const NEUTRAL = "#2a4258";
 const VISITED = "#f4a259";

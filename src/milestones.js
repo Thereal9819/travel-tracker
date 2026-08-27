@@ -1,4 +1,4 @@
-// 52 luoghi iconici del mondo per la pagina Milestone.
+// 109 luoghi iconici del mondo per la pagina Milestone.
 // Le coordinate sono approssimative (centro del monumento/sito) — sufficienti
 // per un puntino su una mappa a scala mondiale, non serve precisione al metro.
 
@@ -24,6 +24,18 @@ export const MILESTONES = [
   { id: "cremlino", name: "Cremlino e Piazza Rossa", country: "Russia", continent: "Europa", lat: 55.7520, lng: 37.6175 },
   { id: "buckingham-palace", name: "Buckingham Palace", country: "Regno Unito", continent: "Europa", lat: 51.5014, lng: -0.1419 },
   { id: "fontana-di-trevi", name: "Fontana di Trevi", country: "Italia", continent: "Europa", lat: 41.9009, lng: 12.4833 },
+  { id: "castel-sant-angelo", name: "Castel Sant'Angelo", country: "Italia", continent: "Europa", lat: 41.9031, lng: 12.4663 },
+  { id: "duomo-firenze", name: "Duomo di Firenze", country: "Italia", continent: "Europa", lat: 43.7731, lng: 11.2560 },
+  { id: "ponte-di-rialto", name: "Ponte di Rialto", country: "Italia", continent: "Europa", lat: 45.4380, lng: 12.3358 },
+  { id: "torre-di-londra", name: "Torre di Londra", country: "Regno Unito", continent: "Europa", lat: 51.5081, lng: -0.0759 },
+  { id: "london-eye", name: "London Eye", country: "Regno Unito", continent: "Europa", lat: 51.5033, lng: -0.1195 },
+  { id: "duomo-colonia", name: "Duomo di Colonia", country: "Germania", continent: "Europa", lat: 50.9413, lng: 6.9583 },
+  { id: "castello-di-praga", name: "Castello di Praga", country: "Repubblica Ceca", continent: "Europa", lat: 50.0910, lng: 14.4016 },
+  { id: "ponte-carlo-praga", name: "Ponte Carlo", country: "Repubblica Ceca", continent: "Europa", lat: 50.0865, lng: 14.4114 },
+  { id: "mont-saint-michel", name: "Mont Saint-Michel", country: "Francia", continent: "Europa", lat: 48.6361, lng: -1.5115 },
+  { id: "scogliere-di-moher", name: "Scogliere di Moher", country: "Irlanda", continent: "Europa", lat: 52.9715, lng: -9.4309 },
+  { id: "palazzo-reale-madrid", name: "Palazzo Reale di Madrid", country: "Spagna", continent: "Europa", lat: 40.4179, lng: -3.7144 },
+  { id: "torre-de-belem", name: "Torre di Belém", country: "Portogallo", continent: "Europa", lat: 38.6916, lng: -9.2160 },
 
   // Asia
   { id: "grande-muraglia", name: "Grande Muraglia Cinese", country: "Cina", continent: "Asia", lat: 40.4319, lng: 116.5704 },
@@ -38,6 +50,19 @@ export const MILESTONES = [
   { id: "palazzo-del-potala", name: "Palazzo del Potala", country: "Cina", continent: "Asia", lat: 29.6558, lng: 91.1177 },
   { id: "monte-fuji", name: "Monte Fuji", country: "Giappone", continent: "Asia", lat: 35.3606, lng: 138.7274 },
   { id: "tempio-oro-amritsar", name: "Tempio d'Oro", country: "India", continent: "Asia", lat: 31.6200, lng: 74.8765 },
+  { id: "fushimi-inari", name: "Santuario Fushimi Inari", country: "Giappone", continent: "Asia", lat: 34.9671, lng: 135.7727 },
+  { id: "tempio-senso-ji", name: "Tempio Senso-ji", country: "Giappone", continent: "Asia", lat: 35.7148, lng: 139.7967 },
+  { id: "torre-di-tokyo", name: "Torre di Tokyo", country: "Giappone", continent: "Asia", lat: 35.6586, lng: 139.7454 },
+  { id: "marina-bay-sands", name: "Marina Bay Sands", country: "Singapore", continent: "Asia", lat: 1.2834, lng: 103.8607 },
+  { id: "petronas-towers", name: "Petronas Towers", country: "Malesia", continent: "Asia", lat: 3.1579, lng: 101.7116 },
+  { id: "borobudur", name: "Borobudur", country: "Indonesia", continent: "Asia", lat: -7.6079, lng: 110.2038 },
+  { id: "wat-arun", name: "Wat Arun", country: "Thailandia", continent: "Asia", lat: 13.7437, lng: 100.4888 },
+  { id: "grand-palace-bangkok", name: "Grand Palace", country: "Thailandia", continent: "Asia", lat: 13.7500, lng: 100.4914 },
+  { id: "muro-del-pianto", name: "Muro del Pianto", country: "Israele", continent: "Asia", lat: 31.7767, lng: 35.2345 },
+  { id: "cupola-della-roccia", name: "Cupola della Roccia", country: "Israele", continent: "Asia", lat: 31.7780, lng: 35.2354 },
+  { id: "registan-samarcanda", name: "Registan", country: "Uzbekistan", continent: "Asia", lat: 39.6547, lng: 66.9750 },
+  { id: "palazzo-topkapi", name: "Palazzo Topkapi", country: "Turchia", continent: "Asia", lat: 41.0115, lng: 28.9833 },
+  { id: "baia-di-halong", name: "Baia di Ha Long", country: "Vietnam", continent: "Asia", lat: 20.9101, lng: 107.1839 },
 
   // Nord America
   { id: "statua-liberta", name: "Statua della Libertà", country: "Stati Uniti", continent: "Nord America", lat: 40.6892, lng: -74.0445 },
@@ -47,12 +72,28 @@ export const MILESTONES = [
   { id: "chichen-itza", name: "Chichen Itza", country: "Messico", continent: "Nord America", lat: 20.6843, lng: -88.5678 },
   { id: "empire-state", name: "Empire State Building", country: "Stati Uniti", continent: "Nord America", lat: 40.7484, lng: -73.9857 },
   { id: "cn-tower", name: "CN Tower", country: "Canada", continent: "Nord America", lat: 43.6426, lng: -79.3871 },
+  { id: "times-square", name: "Times Square", country: "Stati Uniti", continent: "Nord America", lat: 40.7580, lng: -73.9855 },
+  { id: "ponte-di-brooklyn", name: "Ponte di Brooklyn", country: "Stati Uniti", continent: "Nord America", lat: 40.7061, lng: -73.9969 },
+  { id: "casa-bianca", name: "Casa Bianca", country: "Stati Uniti", continent: "Nord America", lat: 38.8977, lng: -77.0365 },
+  { id: "campidoglio-usa", name: "Campidoglio degli Stati Uniti", country: "Stati Uniti", continent: "Nord America", lat: 38.8899, lng: -77.0091 },
+  { id: "hollywood-sign", name: "Hollywood Sign", country: "Stati Uniti", continent: "Nord America", lat: 34.1341, lng: -118.3215 },
+  { id: "space-needle", name: "Space Needle", country: "Stati Uniti", continent: "Nord America", lat: 47.6205, lng: -122.3493 },
+  { id: "grand-canyon", name: "Grand Canyon", country: "Stati Uniti", continent: "Nord America", lat: 36.1069, lng: -112.1129 },
+  { id: "alcatraz", name: "Alcatraz", country: "Stati Uniti", continent: "Nord America", lat: 37.8267, lng: -122.4230 },
 
   // Sud America
   { id: "cristo-redentore", name: "Cristo Redentore", country: "Brasile", continent: "Sud America", lat: -22.9519, lng: -43.2105 },
   { id: "machu-picchu", name: "Machu Picchu", country: "Perù", continent: "Sud America", lat: -13.1631, lng: -72.5450 },
   { id: "moai-isola-pasqua", name: "Moai dell'Isola di Pasqua", country: "Cile", continent: "Sud America", lat: -27.1212, lng: -109.3667 },
   { id: "cascate-iguazu", name: "Cascate dell'Iguazú", country: "Argentina", continent: "Sud America", lat: -25.6953, lng: -54.4367 },
+  { id: "salar-de-uyuni", name: "Salar de Uyuni", country: "Bolivia", continent: "Sud America", lat: -20.1338, lng: -67.4891 },
+  { id: "isole-galapagos", name: "Isole Galápagos", country: "Ecuador", continent: "Sud America", lat: -0.9538, lng: -90.9656 },
+  { id: "perito-moreno", name: "Ghiacciaio Perito Moreno", country: "Argentina", continent: "Sud America", lat: -50.4967, lng: -73.1379 },
+  { id: "torres-del-paine", name: "Torres del Paine", country: "Cile", continent: "Sud America", lat: -50.9423, lng: -73.4068 },
+  { id: "copacabana", name: "Spiaggia di Copacabana", country: "Brasile", continent: "Sud America", lat: -22.9711, lng: -43.1822 },
+  { id: "pan-di-zucchero", name: "Pan di Zucchero", country: "Brasile", continent: "Sud America", lat: -22.9492, lng: -43.1545 },
+  { id: "cartagena-centro-storico", name: "Centro Storico di Cartagena", country: "Colombia", continent: "Sud America", lat: 10.4236, lng: -75.5482 },
+  { id: "obelisco-buenos-aires", name: "Obelisco di Buenos Aires", country: "Argentina", continent: "Sud America", lat: -34.6037, lng: -58.3816 },
 
   // Africa
   { id: "piramidi-giza", name: "Piramidi di Giza", country: "Egitto", continent: "Africa", lat: 29.9792, lng: 31.1342 },
@@ -60,10 +101,26 @@ export const MILESTONES = [
   { id: "table-mountain", name: "Table Mountain", country: "Sudafrica", continent: "Africa", lat: -33.9628, lng: 18.4098 },
   { id: "cascate-vittoria", name: "Cascate Vittoria", country: "Zambia", continent: "Africa", lat: -17.9243, lng: 25.8572 },
   { id: "jemaa-el-fna", name: "Piazza Jemaa el-Fna", country: "Marocco", continent: "Africa", lat: 31.6258, lng: -7.9891 },
+  { id: "serengeti", name: "Parco del Serengeti", country: "Tanzania", continent: "Africa", lat: -2.3333, lng: 34.8333 },
+  { id: "kilimangiaro", name: "Kilimangiaro", country: "Tanzania", continent: "Africa", lat: -3.0674, lng: 37.3556 },
+  { id: "dune-di-merzouga", name: "Dune di Merzouga", country: "Marocco", continent: "Africa", lat: 31.0801, lng: -4.0133 },
+  { id: "chefchaouen", name: "Chefchaouen", country: "Marocco", continent: "Africa", lat: 35.1688, lng: -5.2636 },
+  { id: "saqqara", name: "Piramide a Gradoni di Saqqara", country: "Egitto", continent: "Africa", lat: 29.8714, lng: 31.2164 },
+  { id: "abu-simbel", name: "Tempio di Abu Simbel", country: "Egitto", continent: "Africa", lat: 22.3372, lng: 31.6258 },
+  { id: "valle-dei-re", name: "Valle dei Re", country: "Egitto", continent: "Africa", lat: 25.7402, lng: 32.6014 },
+  { id: "robben-island", name: "Robben Island", country: "Sudafrica", continent: "Africa", lat: -33.8065, lng: 18.3708 },
+  { id: "stone-town-zanzibar", name: "Stone Town", country: "Tanzania", continent: "Africa", lat: -6.1659, lng: 39.1917 },
+  { id: "fes-medina", name: "Medina di Fes", country: "Marocco", continent: "Africa", lat: 34.0669, lng: -4.9761 },
 
   // Oceania
   { id: "sydney-opera-house", name: "Sydney Opera House", country: "Australia", continent: "Oceania", lat: -33.8568, lng: 151.2153 },
   { id: "uluru", name: "Uluru", country: "Australia", continent: "Oceania", lat: -25.3444, lng: 131.0369 },
   { id: "sydney-harbour-bridge", name: "Sydney Harbour Bridge", country: "Australia", continent: "Oceania", lat: -33.8523, lng: 151.2108 },
   { id: "grande-barriera-corallina", name: "Grande Barriera Corallina", country: "Australia", continent: "Oceania", lat: -18.2871, lng: 147.6992 },
+  { id: "milford-sound", name: "Milford Sound", country: "Nuova Zelanda", continent: "Oceania", lat: -44.6414, lng: 167.8974 },
+  { id: "hobbiton", name: "Hobbiton Movie Set", country: "Nuova Zelanda", continent: "Oceania", lat: -37.8721, lng: 175.6820 },
+  { id: "bora-bora", name: "Bora Bora", country: "Polinesia Francese", continent: "Oceania", lat: -16.5004, lng: -151.7415 },
+  { id: "twelve-apostles", name: "Twelve Apostles", country: "Australia", continent: "Oceania", lat: -38.6662, lng: 143.1046 },
+  { id: "whitsunday-islands", name: "Whitsunday Islands", country: "Australia", continent: "Oceania", lat: -20.2870, lng: 149.0400 },
+  { id: "waitomo-caves", name: "Grotte di Waitomo", country: "Nuova Zelanda", continent: "Oceania", lat: -38.2610, lng: 175.1043 },
 ];
