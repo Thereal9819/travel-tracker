@@ -18,24 +18,32 @@ App per visualizzare i tuoi viaggi su una mappa mondiale interattiva.
      const USE_SHEET = true;
 4. Salva. L'app leggerà i viaggi dal foglio a ogni caricamento.
 
-## Collegare le Milestone (Google Apps Script)
-1. Apri il Google Sheet dei viaggi (lo stesso di viaggi.csv), poi
-   Estensioni > Apps Script.
-2. Cancella il contenuto di default e incolla il codice di
-   apps-script/milestone.gs (in questo repository).
-3. Salva, poi Distribuisci > Nuova distribuzione > tipo "App web".
-   - Esegui come: Me
-   - Chi ha accesso: Chiunque
-4. Autorizza l'accesso quando richiesto (è il tuo stesso account Google).
-5. Copia l'URL che termina con  /exec
-6. Apri  src/TravelTracker.jsx  e in cima imposta:
-     const MILESTONE_API_URL = "...il tuo URL...";
-7. Salva. Le milestone spuntate si sincronizzano da quel momento con un
-   nuovo foglio "Milestone" nello stesso file.
+## Collegare le Milestone (database Turso)
+Lo stato "visitato" delle Milestone si salva su un database Turso, letto e
+scritto tramite una funzione serverless inclusa nel progetto
+(`api/milestones.js`) — nessun foglio Google richiesto per questa parte.
 
-Se lasci `MILESTONE_API_URL` vuota, la pagina Milestone funziona comunque:
-spunte e puntini sulla mappa restano attivi, solo senza salvataggio tra un
-caricamento e l'altro della pagina.
+1. Vai su https://turso.tech, crea un account/accedi, crea un nuovo
+   database (es. chiamalo `travel-tracker`).
+2. Dalla pagina del database copia:
+   - il **Database URL** (inizia con `libsql://...`)
+   - un **Auth Token** (crealo se non ne hai già uno)
+3. Vai sul progetto `travel-tracker` su https://vercel.com, poi
+   Settings > Environment Variables, e aggiungi:
+   - `TURSO_DATABASE_URL` = il Database URL copiato al passo 2
+   - `TURSO_AUTH_TOKEN` = l'Auth Token copiato al passo 2
+4. Rideploya il progetto (Vercel > Deployments > "..." sull'ultimo
+   deploy > Redeploy) perché le nuove variabili vengano usate.
+
+Da quel momento `/api/milestones` risponde usando quel database — non
+serve toccare `src/TravelTracker.jsx`, `MILESTONE_API_URL` punta già a
+`/api/milestones` di default. La tabella nel database si crea da sola al
+primo utilizzo.
+
+Se le variabili d'ambiente non sono ancora impostate, la pagina Milestone
+funziona comunque: spunte e puntini sulla mappa restano attivi nella
+sessione corrente, solo senza salvataggio permanente (l'indicatore di
+sincronizzazione nella pagina Milestone mostra lo stato di errore).
 
 ## Deploy online gratis (Vercel)
 1. Carica questa cartella su un repository GitHub
