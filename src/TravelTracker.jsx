@@ -310,19 +310,32 @@ export default function TravelTracker() {
     return { name: entries[0].name, count: entries[0].count };
   }, [byCountry]);
 
-  const topYear = useMemo(() => {
-    if (trips.length === 0) return null;
+  const tripsByYear = useMemo(() => {
     const byYear = {};
     for (const t of trips) {
       const year = (t.dateStart || "").slice(0, 4);
-      if (!year) continue;
+      if (!/^\d{4}$/.test(year)) continue;
       byYear[year] = (byYear[year] || 0) + 1;
     }
-    const entries = Object.entries(byYear).map(([year, count]) => ({ year, count }));
-    if (entries.length === 0) return null;
-    entries.sort((a, b) => (b.count - a.count) || a.year.localeCompare(b.year));
-    return { year: entries[0].year, count: entries[0].count };
+    return Object.entries(byYear)
+      .map(([year, count]) => ({ year, count }))
+      .sort((a, b) => a.year.localeCompare(b.year));
   }, [trips]);
+
+  const topYear = useMemo(() => {
+    if (tripsByYear.length === 0) return null;
+    const sorted = [...tripsByYear].sort((a, b) => (b.count - a.count) || a.year.localeCompare(b.year));
+    return { year: sorted[0].year, count: sorted[0].count };
+  }, [tripsByYear]);
+
+  const topCountriesList = useMemo(
+    () =>
+      Object.entries(byCountry)
+        .map(([a3, list]) => ({ name: COUNTRY_META[a3]?.name || a3, count: list.length }))
+        .sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name))
+        .slice(0, 5),
+    [byCountry]
+  );
 
   const countryOptions = useMemo(
     () => Object.keys(byCountry).map((a3) => ({ a3, name: COUNTRY_META[a3]?.name || a3 })).sort((a, b) => a.name.localeCompare(b.name)),
@@ -638,6 +651,8 @@ export default function TravelTracker() {
             totalTrips={stats.trips}
             topCountry={topCountry}
             topYear={topYear}
+            tripsByYear={tripsByYear}
+            topCountriesList={topCountriesList}
           />
         )}
 
