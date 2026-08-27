@@ -9,6 +9,7 @@ import {
 import { COUNTRY_META, NAME_TO_A3, a3FromGeo } from "./countries.js";
 import { MILESTONES } from "./milestones.js";
 import Milestones from "./Milestones.jsx";
+import Statistics from "./Statistics.jsx";
 
 const Globe3D = lazy(() =>
   import("./Globe3D.jsx").catch(() => ({
@@ -289,6 +290,40 @@ export default function TravelTracker() {
     { label: "20 viaggi", ok: stats.trips >= 20, icon: "✈️" },
   ], [stats]);
 
+  const continentStats = useMemo(() => {
+    const visitedA3 = new Set(Object.keys(byCountry));
+    return CONTINENTS.map((continent) => {
+      const countriesInContinent = Object.entries(COUNTRY_META).filter(([, m]) => m.continent === continent);
+      const total = countriesInContinent.length;
+      const visited = countriesInContinent.filter(([a3]) => visitedA3.has(a3)).length;
+      return { continent, visited, total };
+    });
+  }, [byCountry]);
+
+  const topCountry = useMemo(() => {
+    const entries = Object.entries(byCountry).map(([a3, list]) => ({
+      name: COUNTRY_META[a3]?.name || a3,
+      count: list.length,
+    }));
+    if (entries.length === 0) return null;
+    entries.sort((a, b) => (b.count - a.count) || a.name.localeCompare(b.name));
+    return { name: entries[0].name, count: entries[0].count };
+  }, [byCountry]);
+
+  const topYear = useMemo(() => {
+    if (trips.length === 0) return null;
+    const byYear = {};
+    for (const t of trips) {
+      const year = (t.dateStart || "").slice(0, 4);
+      if (!year) continue;
+      byYear[year] = (byYear[year] || 0) + 1;
+    }
+    const entries = Object.entries(byYear).map(([year, count]) => ({ year, count }));
+    if (entries.length === 0) return null;
+    entries.sort((a, b) => (b.count - a.count) || a.year.localeCompare(b.year));
+    return { year: entries[0].year, count: entries[0].count };
+  }, [trips]);
+
   const countryOptions = useMemo(
     () => Object.keys(byCountry).map((a3) => ({ a3, name: COUNTRY_META[a3]?.name || a3 })).sort((a, b) => a.name.localeCompare(b.name)),
     [byCountry]
@@ -393,9 +428,9 @@ export default function TravelTracker() {
         </div>
 
         <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>
-          {["mappa", "lista", "mappa3d", "milestone"].map((v) => (
+          {["mappa", "lista", "mappa3d", "milestone", "statistiche"].map((v) => (
             <button key={v} className={"tt-btn" + (view === v ? " active" : "")} onClick={() => setView(v)}>
-              {v === "mappa" ? "Mappa" : v === "lista" ? "Lista viaggi" : v === "mappa3d" ? "Mappa 3D" : "Milestone"}
+              {v === "mappa" ? "Mappa" : v === "lista" ? "Lista viaggi" : v === "mappa3d" ? "Mappa 3D" : v === "milestone" ? "Milestone" : "Statistiche"}
             </button>
           ))}
           <div style={{ flex: 1 }} />
@@ -589,6 +624,20 @@ export default function TravelTracker() {
             checkedIds={checkedMilestoneIds}
             syncState={milestoneSyncState}
             onToggle={toggleMilestone}
+          />
+        )}
+
+        {view === "statistiche" && (
+          <Statistics
+            C={C}
+            continentStats={continentStats}
+            worldVisited={stats.countries}
+            worldTotal={stats.totalKnown}
+            milestonesChecked={checkedMilestones.length}
+            milestonesTotal={MILESTONES.length}
+            totalTrips={stats.trips}
+            topCountry={topCountry}
+            topYear={topYear}
           />
         )}
 
