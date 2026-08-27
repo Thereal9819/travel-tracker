@@ -4,6 +4,7 @@ import { feature } from "topojson-client";
 import * as THREE from "three";
 import { COUNTRY_META, a3FromGeo } from "./countries.js";
 import { MILESTONE_EMOJIS, DEFAULT_MILESTONE_EMOJI } from "./milestoneEmojis.js";
+import { dotSizeForAltitude } from "./milestoneMarkerSize.js";
 
 const BG = "#0d1b2a";
 const LINE = "#0d1b2a";
@@ -90,12 +91,18 @@ export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelec
     };
   }, []);
 
-  // Applica/rimuove la classe che fa scattare il CSS dot↔emoji per tutti
-  // i marcatori Milestone in una volta sola.
+  // Applica/rimuove la classe che fa scattare il CSS dot↔emoji, e scrive
+  // la dimensione del puntino (calcolata in base allo zoom) come
+  // variabile CSS — entrambe in un colpo solo, per tutti i marcatori
+  // Milestone contemporaneamente, senza dover iterare sui singoli nodi.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
     el.classList.toggle("gl-zoomed-in", cameraAltitude < ZOOM_EMOJI_THRESHOLD);
+    el.style.setProperty(
+      "--milestone-dot-size",
+      `${dotSizeForAltitude(cameraAltitude, ZOOM_EMOJI_THRESHOLD)}px`
+    );
   }, [cameraAltitude]);
 
   // Evita che il tooltip resti visibile dopo lo smontaggio del componente.
@@ -212,9 +219,16 @@ export default function Globe3D({ geoData, byCountry, heatmap, selected, onSelec
         htmlTransitionDuration={0}
       />
       <style>{`
+        .milestone-marker {
+          width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
         .milestone-marker-dot {
-          width: 10px;
-          height: 10px;
+          width: var(--milestone-dot-size, 10px);
+          height: var(--milestone-dot-size, 10px);
           border-radius: 50%;
           background: ${MILESTONE_RED};
           box-shadow: 0 0 4px rgba(239, 68, 68, 0.8);
