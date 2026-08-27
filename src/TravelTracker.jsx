@@ -146,6 +146,27 @@ export default function TravelTracker() {
   const [tooltip, setTooltip] = useState(null);
   const [view, setView] = useState("mappa");
   const [heatmap, setHeatmap] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(() => {
+    try {
+      return localStorage.getItem("tt-milestones-visible") === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  function toggleShowMilestones() {
+    setShowMilestones((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("tt-milestones-visible", String(next));
+      } catch {
+        // localStorage non disponibile: il toggle funziona comunque per
+        // questa sessione, semplicemente non ricorda la scelta al
+        // prossimo caricamento.
+      }
+      return next;
+    });
+  }
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState("date-desc");
   const [filterCountry, setFilterCountry] = useState("all");
@@ -240,6 +261,11 @@ export default function TravelTracker() {
   const checkedMilestones = useMemo(
     () => MILESTONES.filter((m) => checkedMilestoneIds.has(m.id)),
     [checkedMilestoneIds]
+  );
+
+  const visibleMilestones = useMemo(
+    () => (showMilestones ? checkedMilestones : []),
+    [showMilestones, checkedMilestones]
   );
 
   const stats = useMemo(() => {
@@ -376,6 +402,9 @@ export default function TravelTracker() {
           {(view === "mappa" || view === "mappa3d") && (
             <button className={"tt-btn" + (heatmap ? " active" : "")} onClick={() => setHeatmap((h) => !h)}>{heatmap ? "Heatmap on" : "Heatmap"}</button>
           )}
+          {(view === "mappa" || view === "mappa3d") && (
+            <button className={"tt-btn" + (showMilestones ? " active" : "")} onClick={toggleShowMilestones}>{showMilestones ? "Milestone su mappa on" : "Milestone su mappa"}</button>
+          )}
           <button className="tt-btn" onClick={() => setShowForm(true)}>+ Aggiungi viaggio</button>
           {sheetState !== "idle" && (
             <span style={{ fontSize: 12, color: sheetState === "ok" ? C.accent : sheetState === "loading" ? C.inkSoft : "#e76f51" }}>
@@ -436,7 +465,7 @@ export default function TravelTracker() {
                         })
                       }
                     </Geographies>
-                    {checkedMilestones.map((m) => (
+                    {visibleMilestones.map((m) => (
                       <Marker key={m.id} coordinates={[m.lng, m.lat]}>
                         <circle r={4} fill={C.accent} stroke={C.bg} strokeWidth={1} style={{ pointerEvents: "none" }} />
                       </Marker>
@@ -455,7 +484,7 @@ export default function TravelTracker() {
                     selected={selected}
                     onSelect={setSelected}
                     onHover={setTooltip}
-                    milestones={checkedMilestones}
+                    milestones={visibleMilestones}
                   />
                 </Suspense>
               )}
