@@ -2,11 +2,9 @@
 // Nessuna route qui dentro (solo export nominati) — Vercel non lo tratta
 // come endpoint. La route vera è in api/milestones.js.
 
-import { createClient } from "@libsql/client";
+import { makeClient } from "./_turso.js";
 
-export function makeClient(url, authToken) {
-  return createClient({ url, authToken });
-}
+export { makeClient };
 
 export async function ensureTable(db) {
   await db.execute(
