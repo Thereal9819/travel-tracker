@@ -44,8 +44,8 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 // 3. Metti USE_SHEET = true
 // Il foglio pubblicato NON deve contenere la colonna Costo (è pubblico).
 // L'app legge le colonne: Nazione, Regione, Posto, Visitato dal, Visitato al [, Costo]
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7B6hyYzOpRWCqo6fGJjCYBCu5BGBPtPnr9Nlnd17kRQuqi4Q0qu98pO3-g_oXQ2VfpAlTCS9XoUu4/pub?gid=31953161&single=true&output=csv"; // <-- URL CSV pubblicato
-const USE_SHEET = true;  // <-- collegamento live attivo
+const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7B6hyYzOpRWCqo6fGJjCYBCu5BGBPtPnr9Nlnd17kRQuqi4Q0qu98pO3-g_oXQ2VfpAlTCS9XoUu4/pub?gid=31953161&single=true&output=csv"; // <-- URL CSV pubblicato (non piu usato, vedi USE_SHEET)
+const USE_SHEET = false;  // <-- i viaggi ora arrivano dal database via /api/trips (vedi tripsSyncState); questo blocco resta spento, verra rimosso in un sotto-progetto successivo
 
 // === COLLEGAMENTO MILESTONE (database Turso) ===
 // Endpoint dell'API interna (Vercel Serverless Function + database Turso).
@@ -75,6 +75,13 @@ function parseDate(s) {
 function fmtDate(iso) {
   const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
   return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+function isValidISODate(iso) {
+  const m = String(iso).match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return false;
+  const y = Number(m[1]), mo = Number(m[2]), d = Number(m[3]);
+  const date = new Date(Date.UTC(y, mo - 1, d));
+  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d;
 }
 
 const SAMPLE_ROWS = [
@@ -172,8 +179,11 @@ export default function TravelTracker() {
   const [sortBy, setSortBy] = useState("date-desc");
   const [filterCountry, setFilterCountry] = useState("all");
   const [showForm, setShowForm] = useState(false);
+  const [editingTrip, setEditingTrip] = useState(null);
+  const [importNotice, setImportNotice] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
   const [sheetState, setSheetState] = useState(USE_SHEET ? "loading" : "idle");
+  const [tripsSyncState, setTripsSyncState] = useState("loading");
   const [geoData, setGeoData] = useState(null);
   const [checkedMilestoneIds, setCheckedMilestoneIds] = useState(() => new Set());
   const [milestoneSyncState, setMilestoneSyncState] = useState(MILESTONE_API_URL ? "loading" : "idle");
@@ -198,6 +208,24 @@ export default function TravelTracker() {
         else if (alive) setSheetState("empty");
       } catch (e) {
         if (alive) setSheetState("error");
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Caricamento viaggi dal database (Turso, via /api/trips). Nessun
+  // fallback al foglio Google: se questa chiamata fallisce, trips resta
+  // vuoto e tripsSyncState segnala l'errore in header.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch("/api/trips", { cache: "no-store" });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        const data = await res.json();
+        if (alive) { setTrips(data.trips || []); setTripsSyncState("ok"); }
+      } catch (e) {
+        if (alive) { setTrips([]); setTripsSyncState("error"); }
       }
     })();
     return () => { alive = false; };
@@ -365,23 +393,72 @@ export default function TravelTracker() {
     return out;
   }, [trips, filterCountry, search, sortBy]);
 
-  function addTrip(t) { setTrips((prev) => [...prev, { ...t, id: "t" + Date.now() }]); setShowForm(false); }
-  function removeTrip(id) { setTrips((prev) => prev.filter((t) => t.id !== id)); }
+  async function addTrip(payload) {
+    const res = await fetch("/api/trips", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
+    setTrips(data.trips);
+  }
 
-  function exportJSON() {
-    const blob = new Blob([JSON.stringify(trips, null, 2)], { type: "application/json" });
+  async function updateTrip(id, payload) {
+    const res = await fetch("/api/trips", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, ...payload }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
+    setTrips(data.trips);
+  }
+
+  async function removeTrip(id) {
+    if (!window.confirm("Eliminare questo viaggio? Non si può annullare.")) return;
+    try {
+      const res = await fetch("/api/trips", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
+      setTrips(data.trips);
+    } catch (e) {
+      alert("Impossibile eliminare il viaggio: " + e.message);
+    }
+  }
+
+  async function exportJSON() {
+    let data;
+    try {
+      const res = await fetch("/api/trips", { cache: "no-store" });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      data = (await res.json()).trips || [];
+    } catch (e) {
+      alert("Impossibile scaricare i viaggi dal database: " + e.message);
+      return;
+    }
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url; a.download = "viaggi.json"; a.click();
     URL.revokeObjectURL(url);
   }
+  const IMPORT_NOTICE_TEXT = "Anteprima locale, non salvata sul database — tornerà ai dati reali al prossimo caricamento della pagina.";
   function importJSON(e) {
     const file = e.target.files?.[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = () => {
       try {
         const data = JSON.parse(reader.result);
-        if (Array.isArray(data)) { setTrips(data.filter((d) => d && d.countryA3)); setSelected(null); }
+        if (Array.isArray(data)) {
+          setTrips(data.filter((d) => d && d.countryA3));
+          setSelected(null);
+          setImportNotice(IMPORT_NOTICE_TEXT);
+        }
         else alert("Il file non contiene un elenco di viaggi valido.");
       } catch { alert("File JSON non leggibile."); }
     };
@@ -396,7 +473,9 @@ export default function TravelTracker() {
       const body = rows.slice(1).filter((r) => r.some((c) => c && c.trim()));
       const mapped = rowsToTrips(body.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5]]));
       if (mapped.length === 0) { alert("Nessuna riga riconosciuta. Colonne attese: Nazione, Regione, Posto, Visitato dal, Visitato al, Costo."); return; }
-      setTrips(mapped); setSelected(null);
+      setTrips(mapped);
+      setSelected(null);
+      setImportNotice(IMPORT_NOTICE_TEXT);
     };
     reader.readAsText(file); e.target.value = "";
   }
@@ -462,6 +541,11 @@ export default function TravelTracker() {
               {sheetState === "error" && "Sheets: errore (uso i dati locali)"}
             </span>
           )}
+          <span style={{ fontSize: 12, color: tripsSyncState === "ok" ? C.accent : tripsSyncState === "loading" ? C.inkSoft : "#e76f51" }}>
+            {tripsSyncState === "loading" && "Database: caricamento…"}
+            {tripsSyncState === "ok" && "Database: collegato ✓"}
+            {tripsSyncState === "error" && "Database: errore (impossibile caricare i viaggi)"}
+          </span>
           <ProfileMenu
             show={showProfile}
             onToggle={() => setShowProfile((s) => !s)}
@@ -476,6 +560,15 @@ export default function TravelTracker() {
           <input ref={csvRef} type="file" accept=".csv,text/csv" onChange={importCSV} style={{ display: "none" }} />
         </div>
       </header>
+
+      {importNotice && (
+        <div style={{ maxWidth: 1180, margin: "0 auto", padding: "0 20px" }}>
+          <div style={{ background: "#3a2a12", border: "1px solid #caa457", color: "#f0d9a8", borderRadius: 10, padding: "10px 14px", fontSize: 13, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 10 }}>
+            <span>{importNotice}</span>
+            <button className="tt-btn" style={{ padding: "3px 9px" }} onClick={() => setImportNotice(null)}>Chiudi</button>
+          </div>
+        </div>
+      )}
 
       <main style={{ maxWidth: 1180, margin: "0 auto", padding: "14px 20px 40px" }}>
         {(view === "mappa" || view === "mappa3d") && (
@@ -619,7 +712,10 @@ export default function TravelTracker() {
                       <td style={{ ...td, maxWidth: 380 }}>{t.notes || t.city}</td>
                       <td style={{ ...td, color: C.accent, whiteSpace: "nowrap" }}>{fmtDate(t.dateStart)}</td>
                       <td style={{ ...td, color: C.accent, whiteSpace: "nowrap" }}>{fmtDate(t.dateEnd)}</td>
-                      <td style={td}><button className="tt-btn" style={{ padding: "3px 9px" }} onClick={() => removeTrip(t.id)}>Elimina</button></td>
+                      <td style={td}>
+                        <button className="tt-btn" style={{ padding: "3px 9px", marginRight: 6 }} onClick={() => setEditingTrip(t)}>Modifica</button>
+                        <button className="tt-btn" style={{ padding: "3px 9px" }} onClick={() => removeTrip(t.id)}>Elimina</button>
+                      </td>
                     </tr>
                   ))}
                   {listTrips.length === 0 && (
@@ -665,7 +761,19 @@ export default function TravelTracker() {
         </div>
       )}
 
-      {showForm && <TripForm onClose={() => setShowForm(false)} onAdd={addTrip} />}
+      {(showForm || editingTrip) && (
+        <TripForm
+          key={editingTrip ? `edit-${editingTrip.id}` : "new"}
+          initial={editingTrip}
+          onClose={() => { setShowForm(false); setEditingTrip(null); }}
+          onSubmit={async (payload) => {
+            if (editingTrip) await updateTrip(editingTrip.id, payload);
+            else await addTrip(payload);
+            setShowForm(false);
+            setEditingTrip(null);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -728,19 +836,46 @@ const inp = { background: C.bg, color: C.ink, border: `1px solid ${C.line}`, bor
 const th = { padding: "8px 10px", fontWeight: 500, fontSize: 12 };
 const td = { padding: "9px 10px", verticalAlign: "top" };
 
-function TripForm({ onClose, onAdd }) {
-  const [countryA3, setCountryA3] = useState("ITA");
-  const [region, setRegion] = useState("");
-  const [city, setCity] = useState("");
-  const [notes, setNotes] = useState("");
-  const [dateStart, setDateStart] = useState("");
-  const [dateEnd, setDateEnd] = useState("");
-  const [cost, setCost] = useState("");
+function TripForm({ initial, onClose, onSubmit }) {
+  const [countryA3, setCountryA3] = useState(initial?.countryA3 || "ITA");
+  const [region, setRegion] = useState(initial?.region || "");
+  const [city, setCity] = useState(initial?.city || "");
+  const [notes, setNotes] = useState(initial?.notes || "");
+  const [dateStart, setDateStart] = useState(initial?.dateStart ? fmtDate(initial.dateStart) : "");
+  const [dateEnd, setDateEnd] = useState(initial?.dateEnd ? fmtDate(initial.dateEnd) : "");
+  const [cost, setCost] = useState(initial?.cost || "");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
   const opts = Object.entries(COUNTRY_META).map(([a3, m]) => ({ a3, name: m.name })).sort((a, b) => a.name.localeCompare(b.name));
+
+  async function handleSubmit() {
+    if (!dateStart) { setError("Inserisci almeno la data di inizio."); return; }
+    const parsedStart = parseDate(dateStart);
+    const parsedEnd = parseDate(dateEnd || dateStart);
+    if (!isValidISODate(parsedStart)) { setError("Formato data non valido. Usa gg/mm/aaaa."); return; }
+    if (dateEnd && !isValidISODate(parsedEnd)) { setError("Formato data non valido. Usa gg/mm/aaaa."); return; }
+    setSaving(true);
+    setError(null);
+    try {
+      await onSubmit({
+        countryA3,
+        countryRaw: COUNTRY_META[countryA3]?.name,
+        region,
+        city,
+        notes: notes || city,
+        dateStart: parsedStart,
+        dateEnd: parsedEnd,
+      });
+    } catch (e) {
+      setError(e.message || "Errore sconosciuto");
+      setSaving(false);
+    }
+  }
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,10,17,.7)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 16 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ background: C.panel, border: `1px solid ${C.line}`, borderRadius: 16, padding: 20, width: "100%", maxWidth: 460, maxHeight: "90vh", overflowY: "auto" }}>
-        <h2 style={{ fontFamily: "'Fraunces',serif", margin: "0 0 14px", fontSize: 20 }}>Aggiungi un viaggio</h2>
+        <h2 style={{ fontFamily: "'Fraunces',serif", margin: "0 0 14px", fontSize: 20 }}>{initial ? "Modifica viaggio" : "Aggiungi un viaggio"}</h2>
         <label style={lbl}>Paese</label>
         <select value={countryA3} onChange={(e) => setCountryA3(e.target.value)} style={{ ...inp, width: "100%", marginBottom: 12 }}>
           {opts.map((o) => <option key={o.a3} value={o.a3}>{o.name}</option>)}
@@ -761,14 +896,13 @@ function TripForm({ onClose, onAdd }) {
             <input value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} placeholder="16/04/2023" style={{ ...inp, width: "100%" }} />
           </div>
         </div>
-        <label style={lbl}>Costo (€, opzionale)</label>
+        <label style={lbl}>Costo (€, opzionale — solo locale, mai salvato)</label>
         <input value={cost} onChange={(e) => setCost(e.target.value)} placeholder="-90" style={{ ...inp, width: "100%", marginBottom: 16 }} />
-        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-          <button className="tt-btn" onClick={onClose}>Annulla</button>
-          <button className="tt-btn active" onClick={() => {
-            if (!dateStart) { alert("Inserisci almeno la data di inizio."); return; }
-            onAdd({ countryA3, countryRaw: COUNTRY_META[countryA3]?.name, region, city, notes: notes || city, dateStart: parseDate(dateStart), dateEnd: parseDate(dateEnd || dateStart), cost });
-          }}>Salva viaggio</button>
+        {error && <div style={{ color: "#e76f51", fontSize: 13, marginBottom: 12 }}>{error}</div>}
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
+          {saving && <span style={{ fontSize: 12, color: C.inkSoft }}>Salvataggio…</span>}
+          <button className="tt-btn" onClick={onClose} disabled={saving}>Annulla</button>
+          <button className="tt-btn active" onClick={handleSubmit} disabled={saving}>{initial ? "Salva modifiche" : "Salva viaggio"}</button>
         </div>
       </div>
     </div>
