@@ -21,6 +21,9 @@ for (const suffix of ["", "-shm", "-wal"]) {
 }
 process.env.TURSO_DATABASE_URL = `file:${DB_FILE}`;
 delete process.env.TURSO_AUTH_TOKEN; // local file: DB needs no auth token
+const TEST_KEY = "test-shared-secret";
+process.env.API_SHARED_SECRET = TEST_KEY;
+const AUTH_HEADERS = { "x-api-key": TEST_KEY };
 
 const { default: handler } = await import("../api/milestones.js");
 
@@ -54,24 +57,39 @@ async function main() {
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, { checked: [] });
 
-  // POST invalid body
+  // POST senza x-api-key -> 401, nessuna scrittura
   res = mockRes();
-  await handler({ method: "POST", body: {} }, res);
+  await handler({ method: "POST", body: { id: "taj-mahal", checked: true } }, res);
+  assert.equal(res.statusCode, 401);
+
+  // POST con x-api-key sbagliata -> 401
+  res = mockRes();
+  await handler({ method: "POST", headers: { "x-api-key": "wrong" }, body: { id: "taj-mahal", checked: true } }, res);
+  assert.equal(res.statusCode, 401);
+
+  // GET riflette che nessuna delle due POST sopra ha scritto nulla
+  res = mockRes();
+  await handler({ method: "GET" }, res);
+  assert.deepEqual(res.body, { checked: [] });
+
+  // POST invalid body, con chiave corretta
+  res = mockRes();
+  await handler({ method: "POST", headers: AUTH_HEADERS, body: {} }, res);
   assert.equal(res.statusCode, 400);
 
   // POST id with disallowed characters (uppercase, spaces, etc.)
   res = mockRes();
-  await handler({ method: "POST", body: { id: "Not Valid!", checked: true } }, res);
+  await handler({ method: "POST", headers: AUTH_HEADERS, body: { id: "Not Valid!", checked: true } }, res);
   assert.equal(res.statusCode, 400);
 
   // POST id too long (> 64 chars)
   res = mockRes();
-  await handler({ method: "POST", body: { id: "a".repeat(65), checked: true } }, res);
+  await handler({ method: "POST", headers: AUTH_HEADERS, body: { id: "a".repeat(65), checked: true } }, res);
   assert.equal(res.statusCode, 400);
 
   // POST valid check
   res = mockRes();
-  await handler({ method: "POST", body: { id: "taj-mahal", checked: true } }, res);
+  await handler({ method: "POST", headers: AUTH_HEADERS, body: { id: "taj-mahal", checked: true } }, res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, { checked: ["taj-mahal"] });
 
@@ -82,7 +100,7 @@ async function main() {
 
   // POST uncheck
   res = mockRes();
-  await handler({ method: "POST", body: { id: "taj-mahal", checked: false } }, res);
+  await handler({ method: "POST", headers: AUTH_HEADERS, body: { id: "taj-mahal", checked: false } }, res);
   assert.deepEqual(res.body, { checked: [] });
 
   // Unsupported method
