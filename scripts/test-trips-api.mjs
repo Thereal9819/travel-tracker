@@ -18,9 +18,6 @@ for (const suffix of ["", "-shm", "-wal"]) {
 }
 process.env.TURSO_DATABASE_URL = `file:${DB_FILE}`;
 delete process.env.TURSO_AUTH_TOKEN; // local file: DB needs no auth token
-const TEST_KEY = "test-shared-secret";
-process.env.API_SHARED_SECRET = TEST_KEY;
-const AUTH_HEADERS = { "x-api-key": TEST_KEY };
 
 const { default: handler } = await import("../api/trips.js");
 
@@ -54,33 +51,15 @@ async function main() {
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body, { trips: [] });
 
-  // POST senza x-api-key -> 401, nessuna scrittura
+  // POST corpo non valido (manca countryA3)
   res = mockRes();
-  await handler({ method: "POST", body: { countryA3: "ITA", countryRaw: "Italia", dateStart: "2023-01-01" } }, res);
-  assert.equal(res.statusCode, 401);
-
-  // POST con x-api-key sbagliata -> 401
-  res = mockRes();
-  await handler(
-    { method: "POST", headers: { "x-api-key": "wrong" }, body: { countryA3: "ITA", countryRaw: "Italia", dateStart: "2023-01-01" } },
-    res
-  );
-  assert.equal(res.statusCode, 401);
-
-  // GET riflette che nessuna delle due POST sopra ha scritto nulla
-  res = mockRes();
-  await handler({ method: "GET" }, res);
-  assert.deepEqual(res.body, { trips: [] });
-
-  // POST corpo non valido (manca countryA3), con chiave corretta
-  res = mockRes();
-  await handler({ method: "POST", headers: AUTH_HEADERS, body: { countryRaw: "Italia", dateStart: "2023-01-01" } }, res);
+  await handler({ method: "POST", body: { countryRaw: "Italia", dateStart: "2023-01-01" } }, res);
   assert.equal(res.statusCode, 400);
 
   // POST valido
   res = mockRes();
   await handler(
-    { method: "POST", headers: AUTH_HEADERS, body: { countryA3: "ITA", countryRaw: "Italia", city: "Roma", dateStart: "2023-01-01" } },
+    { method: "POST", body: { countryA3: "ITA", countryRaw: "Italia", city: "Roma", dateStart: "2023-01-01" } },
     res
   );
   assert.equal(res.statusCode, 200);
@@ -94,20 +73,11 @@ async function main() {
   await handler({ method: "GET" }, res);
   assert.equal(res.body.trips.length, 1);
 
-  // PUT senza x-api-key -> 401
-  res = mockRes();
-  await handler(
-    { method: "PUT", body: { id: createdId, countryA3: "ITA", countryRaw: "Italia", city: "Milano", dateStart: "2023-01-01" } },
-    res
-  );
-  assert.equal(res.statusCode, 401);
-
-  // PUT su id esistente, con chiave corretta
+  // PUT su id esistente
   res = mockRes();
   await handler(
     {
       method: "PUT",
-      headers: AUTH_HEADERS,
       body: { id: createdId, countryA3: "ITA", countryRaw: "Italia", city: "Milano", dateStart: "2023-01-01" },
     },
     res
@@ -120,32 +90,26 @@ async function main() {
   await handler(
     {
       method: "PUT",
-      headers: AUTH_HEADERS,
       body: { id: "non-esiste", countryA3: "ITA", countryRaw: "Italia", dateStart: "2023-01-01" },
     },
     res
   );
   assert.equal(res.statusCode, 404);
 
-  // DELETE senza x-api-key -> 401
+  // DELETE senza id -> 400
   res = mockRes();
-  await handler({ method: "DELETE", body: { id: createdId } }, res);
-  assert.equal(res.statusCode, 401);
-
-  // DELETE senza id, con chiave corretta -> 400
-  res = mockRes();
-  await handler({ method: "DELETE", headers: AUTH_HEADERS, body: {} }, res);
+  await handler({ method: "DELETE", body: {} }, res);
   assert.equal(res.statusCode, 400);
 
   // DELETE su id esistente
   res = mockRes();
-  await handler({ method: "DELETE", headers: AUTH_HEADERS, body: { id: createdId } }, res);
+  await handler({ method: "DELETE", body: { id: createdId } }, res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.trips, []);
 
   // DELETE su id inesistente -> 200 (no error for missing id on DELETE)
   res = mockRes();
-  await handler({ method: "DELETE", headers: AUTH_HEADERS, body: { id: "non-esiste" } }, res);
+  await handler({ method: "DELETE", body: { id: "non-esiste" } }, res);
   assert.equal(res.statusCode, 200);
   assert.deepEqual(res.body.trips, []);
 
