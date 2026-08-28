@@ -23,29 +23,15 @@ const Globe3D = lazy(() =>
 
 /*
   Travel Tracker — single-file React app
-  Schema allineato all'Excel: Nazione, Regione, Posto, Visitato dal/al, Costo.
   - Mappa mondiale interattiva (react-simple-maps + world-atlas TopoJSON via CDN)
   - Split automatico "città" dal campo Posto (best effort), testo completo sempre mostrato
-  - Costo visibile solo nel dettaglio (fuori dalle statistiche)
-  - Persistenza: stato in memoria + export/import JSON + import CSV Google Sheets
-
-  === COLLEGARE IL TUO GOOGLE SHEET (fuori dalla chat) ===
-  1. Google Sheets: File > Condividi > Pubblica sul web > (foglio) > CSV
-  2. Incolla l'URL in SHEET_CSV_URL e metti USE_SHEET=true.
-     Funziona solo se l'app gira in locale o su host (qui le chiamate di rete sono bloccate).
-     In alternativa: bottone "Importa CSV" col file scaricato dal foglio.
+  - Persistenza: database Turso via /api/trips (Vercel Serverless Function) — vedi tripsSyncState.
+    Aggiungi/Modifica/Elimina sono operazioni reali e persistenti sul database condiviso.
+  - Export JSON scarica un backup fresco dal database; import JSON/CSV restano anteprime
+    locali (mai scritte sul database), con avviso visibile (importNotice).
 */
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
-
-// === COLLEGAMENTO LIVE A GOOGLE SHEETS ===
-// 1. Pubblica il foglio: File > Condividi > Pubblica sul web > (foglio) > CSV
-// 2. Incolla qui sotto l'URL .../pub?output=csv
-// 3. Metti USE_SHEET = true
-// Il foglio pubblicato NON deve contenere la colonna Costo (è pubblico).
-// L'app legge le colonne: Nazione, Regione, Posto, Visitato dal, Visitato al [, Costo]
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vT7B6hyYzOpRWCqo6fGJjCYBCu5BGBPtPnr9Nlnd17kRQuqi4Q0qu98pO3-g_oXQ2VfpAlTCS9XoUu4/pub?gid=31953161&single=true&output=csv"; // <-- URL CSV pubblicato (non piu usato, vedi USE_SHEET)
-const USE_SHEET = false;  // <-- i viaggi ora arrivano dal database via /api/trips (vedi tripsSyncState); questo blocco resta spento, verra rimosso in un sotto-progetto successivo
 
 // === COLLEGAMENTO MILESTONE (database Turso) ===
 // Endpoint dell'API interna (Vercel Serverless Function + database Turso).
@@ -55,6 +41,18 @@ const MILESTONE_API_URL = "/api/milestones";
 // === LOGIN (barriera visiva, non sicurezza reale) ===
 const AUTH_USER = "iona.cancelli";
 const AUTH_PASS = "chiara99";
+
+const WRITE_HEADERS = { "Content-Type": "application/json" };
+
+// Estrae un messaggio d'errore leggibile da una risposta fetch non-ok: usa il
+// campo "error" del corpo JSON se presente, altrimenti ripiega sullo status
+// HTTP invece di far propagare un errore di parsing poco chiaro (es.
+// "Unexpected end of JSON input" su un corpo vuoto/non-JSON).
+async function readError(res) {
+  let body = null;
+  try { body = await res.json(); } catch {}
+  return (body && body.error) || `HTTP ${res.status}`;
+}
 
 function splitPosto(posto) {
   if (!posto) return { city: "", rest: "" };
@@ -99,7 +97,7 @@ const SAMPLE_ROWS = [
 
 function rowsToTrips(rows) {
   return rows.map((r, i) => {
-    const [naz, reg, posto, dal, al, costo] = r;
+    const [naz, reg, posto, dal, al] = r;
     const a3 = NAME_TO_A3[(naz || "").trim().toLowerCase()] || null;
     const { city, rest } = splitPosto(posto);
     return {
@@ -107,7 +105,6 @@ function rowsToTrips(rows) {
       countryA3: a3, countryRaw: naz, region: reg || "",
       city, notes: rest,
       dateStart: parseDate(dal), dateEnd: parseDate(al),
-      cost: costo || "",
     };
   }).filter((t) => t.countryA3);
 }
@@ -182,36 +179,12 @@ export default function TravelTracker() {
   const [editingTrip, setEditingTrip] = useState(null);
   const [importNotice, setImportNotice] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
-  const [sheetState, setSheetState] = useState(USE_SHEET ? "loading" : "idle");
   const [tripsSyncState, setTripsSyncState] = useState("loading");
   const [geoData, setGeoData] = useState(null);
   const [checkedMilestoneIds, setCheckedMilestoneIds] = useState(() => new Set());
   const [milestoneSyncState, setMilestoneSyncState] = useState(MILESTONE_API_URL ? "loading" : "idle");
   const jsonRef = useRef(null);
   const csvRef = useRef(null);
-
-  // Caricamento live da Google Sheets (solo se USE_SHEET = true e app fuori dalla chat)
-  useEffect(() => {
-    if (!USE_SHEET || !SHEET_CSV_URL) return;
-    let alive = true;
-    (async () => {
-      try {
-        const url = SHEET_CSV_URL + (SHEET_CSV_URL.includes("?") ? "&" : "?") + "_cb=" + Date.now();
-        const res = await fetch(url, { cache: "no-store" });
-        if (!res.ok) throw new Error("HTTP " + res.status);
-        const text = await res.text();
-        const rows = parseCSV(text).filter((r) => r.some((c) => c && c.trim()));
-        if (rows.length < 2) throw new Error("CSV vuoto");
-        const body = rows.slice(1).map((r) => [r[0], r[1], r[2], r[3], r[4], r[5] || ""]);
-        const mapped = rowsToTrips(body);
-        if (alive && mapped.length) { setTrips(mapped); setSheetState("ok"); }
-        else if (alive) setSheetState("empty");
-      } catch (e) {
-        if (alive) setSheetState("error");
-      }
-    })();
-    return () => { alive = false; };
-  }, []);
 
   // Caricamento viaggi dal database (Turso, via /api/trips). Nessun
   // fallback al foglio Google: se questa chiamata fallisce, trips resta
@@ -266,7 +239,7 @@ export default function TravelTracker() {
     setMilestoneSyncState("loading");
     fetch(MILESTONE_API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: WRITE_HEADERS,
       body: JSON.stringify({ id, checked }),
     })
       .then((res) => { if (!res.ok) throw new Error("HTTP " + res.status); return res.json(); })
@@ -396,22 +369,22 @@ export default function TravelTracker() {
   async function addTrip(payload) {
     const res = await fetch("/api/trips", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: WRITE_HEADERS,
       body: JSON.stringify(payload),
     });
+    if (!res.ok) throw new Error(await readError(res));
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
     setTrips(data.trips);
   }
 
   async function updateTrip(id, payload) {
     const res = await fetch("/api/trips", {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: WRITE_HEADERS,
       body: JSON.stringify({ id, ...payload }),
     });
+    if (!res.ok) throw new Error(await readError(res));
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
     setTrips(data.trips);
   }
 
@@ -420,11 +393,11 @@ export default function TravelTracker() {
     try {
       const res = await fetch("/api/trips", {
         method: "DELETE",
-        headers: { "Content-Type": "application/json" },
+        headers: WRITE_HEADERS,
         body: JSON.stringify({ id }),
       });
+      if (!res.ok) throw new Error(await readError(res));
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Errore sconosciuto");
       setTrips(data.trips);
     } catch (e) {
       alert("Impossibile eliminare il viaggio: " + e.message);
@@ -472,7 +445,7 @@ export default function TravelTracker() {
       if (rows.length < 2) { alert("CSV vuoto o non valido."); return; }
       const body = rows.slice(1).filter((r) => r.some((c) => c && c.trim()));
       const mapped = rowsToTrips(body.map((r) => [r[0], r[1], r[2], r[3], r[4], r[5]]));
-      if (mapped.length === 0) { alert("Nessuna riga riconosciuta. Colonne attese: Nazione, Regione, Posto, Visitato dal, Visitato al, Costo."); return; }
+      if (mapped.length === 0) { alert("Nessuna riga riconosciuta. Colonne attese: Nazione, Regione, Posto, Visitato dal, Visitato al."); return; }
       setTrips(mapped);
       setSelected(null);
       setImportNotice(IMPORT_NOTICE_TEXT);
@@ -533,14 +506,6 @@ export default function TravelTracker() {
             <button className={"tt-btn" + (showMilestones ? " active" : "")} onClick={toggleShowMilestones}>{showMilestones ? "Milestone su mappa on" : "Milestone su mappa"}</button>
           )}
           <button className="tt-btn" onClick={() => setShowForm(true)}>+ Aggiungi viaggio</button>
-          {sheetState !== "idle" && (
-            <span style={{ fontSize: 12, color: sheetState === "ok" ? C.accent : sheetState === "loading" ? C.inkSoft : "#e76f51" }}>
-              {sheetState === "loading" && "Sheets: caricamento…"}
-              {sheetState === "ok" && "Sheets: collegato ✓"}
-              {sheetState === "empty" && "Sheets: nessun dato"}
-              {sheetState === "error" && "Sheets: errore (uso i dati locali)"}
-            </span>
-          )}
           <span style={{ fontSize: 12, color: tripsSyncState === "ok" ? C.accent : tripsSyncState === "loading" ? C.inkSoft : "#e76f51" }}>
             {tripsSyncState === "loading" && "Database: caricamento…"}
             {tripsSyncState === "ok" && "Database: collegato ✓"}
@@ -663,9 +628,6 @@ export default function TravelTracker() {
                         {t.region && <div style={{ fontSize: 12, color: C.inkSoft, marginTop: 2 }}>{t.region}</div>}
                         {t.notes && t.notes !== t.city && (
                           <p style={{ margin: "6px 0 0", fontSize: 13, color: C.inkSoft, lineHeight: 1.45 }}>{t.notes}</p>
-                        )}
-                        {t.cost && String(t.cost).trim() !== "" && String(t.cost).trim() !== "0" && (
-                          <div style={{ marginTop: 6, fontSize: 12, color: C.inkSoft }}>Costo: <span style={{ color: C.ink }}>{t.cost} €</span></div>
                         )}
                       </div>
                     ))}
@@ -843,7 +805,6 @@ function TripForm({ initial, onClose, onSubmit }) {
   const [notes, setNotes] = useState(initial?.notes || "");
   const [dateStart, setDateStart] = useState(initial?.dateStart ? fmtDate(initial.dateStart) : "");
   const [dateEnd, setDateEnd] = useState(initial?.dateEnd ? fmtDate(initial.dateEnd) : "");
-  const [cost, setCost] = useState(initial?.cost || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const opts = Object.entries(COUNTRY_META).map(([a3, m]) => ({ a3, name: m.name })).sort((a, b) => a.name.localeCompare(b.name));
@@ -896,8 +857,6 @@ function TripForm({ initial, onClose, onSubmit }) {
             <input value={dateEnd} onChange={(e) => setDateEnd(e.target.value)} placeholder="16/04/2023" style={{ ...inp, width: "100%" }} />
           </div>
         </div>
-        <label style={lbl}>Costo (€, opzionale — solo locale, mai salvato)</label>
-        <input value={cost} onChange={(e) => setCost(e.target.value)} placeholder="-90" style={{ ...inp, width: "100%", marginBottom: 16 }} />
         {error && <div style={{ color: "#e76f51", fontSize: 13, marginBottom: 12 }}>{error}</div>}
         <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", alignItems: "center" }}>
           {saving && <span style={{ fontSize: 12, color: C.inkSoft }}>Salvataggio…</span>}
