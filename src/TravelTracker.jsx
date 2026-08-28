@@ -914,6 +914,7 @@ function LoginGate({ onOk }) {
   const [u, setU] = useState("");
   const [p, setP] = useState("");
   const [err, setErr] = useState(false);
+  const [showPass, setShowPass] = useState(false);
   function submit() {
     if (u.trim() === AUTH_USER && p === AUTH_PASS) onOk();
     else setErr(true);
@@ -930,9 +931,15 @@ function LoginGate({ onOk }) {
         <input value={u} onChange={(e) => { setU(e.target.value); setErr(false); }} placeholder="Utente"
           onKeyDown={(e) => e.key === "Enter" && submit()}
           style={{ background: C.bg, color: C.ink, border: `1px solid ${err ? "#e76f51" : C.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, width: "100%", marginBottom: 10, fontFamily: "inherit" }} />
-        <input value={p} onChange={(e) => { setP(e.target.value); setErr(false); }} type="password" placeholder="Password"
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-          style={{ background: C.bg, color: C.ink, border: `1px solid ${err ? "#e76f51" : C.line}`, borderRadius: 10, padding: "10px 12px", fontSize: 14, width: "100%", marginBottom: 14, fontFamily: "inherit" }} />
+        <div style={{ position: "relative", marginBottom: 14 }}>
+          <input value={p} onChange={(e) => { setP(e.target.value); setErr(false); }} type={showPass ? "text" : "password"} placeholder="Password"
+            onKeyDown={(e) => e.key === "Enter" && submit()}
+            style={{ background: C.bg, color: C.ink, border: `1px solid ${err ? "#e76f51" : C.line}`, borderRadius: 10, padding: "10px 40px 10px 12px", fontSize: 14, width: "100%", fontFamily: "inherit" }} />
+          <button type="button" onClick={() => setShowPass((s) => !s)} aria-label={showPass ? "Nascondi password" : "Mostra password"}
+            style={{ position: "absolute", right: 4, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: C.inkSoft, cursor: "pointer", padding: 8, fontSize: 15, lineHeight: 1 }}>
+            {showPass ? "🙈" : "👁️"}
+          </button>
+        </div>
         {err && <div style={{ color: "#e76f51", fontSize: 13, marginBottom: 12, textAlign: "center" }}>Credenziali non valide</div>}
         <button onClick={submit}
           style={{ background: C.accent, color: "#06222a", border: "none", borderRadius: 10, padding: "11px", fontSize: 14, fontWeight: 600, width: "100%", cursor: "pointer", fontFamily: "inherit" }}>
