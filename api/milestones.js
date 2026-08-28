@@ -1,8 +1,11 @@
 // Vercel Serverless Function: GET/POST /api/milestones
 // Stato di "quali Milestone ho segnato come visitate", salvato su Turso.
 import { makeClient, ensureTable, getChecked, setChecked } from "./_milestones-db.js";
+import { checkWriteAuth } from "./_auth.js";
 
 export default async function handler(req, res) {
+  if (req.method === "POST" && !checkWriteAuth(req, res)) return;
+
   try {
     const db = makeClient(process.env.TURSO_DATABASE_URL, process.env.TURSO_AUTH_TOKEN);
     await ensureTable(db);

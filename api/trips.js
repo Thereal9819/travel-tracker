@@ -2,6 +2,7 @@
 // Elenco dei viaggi, salvato su Turso.
 import { makeClient } from "./_turso.js";
 import { ensureTable, listTrips, insertTrip, updateTrip, deleteTrip } from "./_trips-db.js";
+import { checkWriteAuth } from "./_auth.js";
 
 function parseBody(req) {
   const body = req.body || {};
@@ -16,7 +17,11 @@ function validateFields(body) {
   return null;
 }
 
+const WRITE_METHODS = ["POST", "PUT", "DELETE"];
+
 export default async function handler(req, res) {
+  if (WRITE_METHODS.includes(req.method) && !checkWriteAuth(req, res)) return;
+
   try {
     const db = makeClient(process.env.TURSO_DATABASE_URL, process.env.TURSO_AUTH_TOKEN);
     await ensureTable(db);
